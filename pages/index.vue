@@ -13,7 +13,9 @@ import {
   Settings,
   Shield,
   Trash2,
-  Upload
+  Upload,
+  Users,
+  X
 } from "lucide-vue-next";
 import type { Component } from "vue";
 import type {
@@ -38,42 +40,49 @@ const sections: SectionConfig[] = [
     key: "milestones",
     label: "Milestones",
     description: "Kontrol checklist perkembangan anak.",
-    fields: ["id", "slug", "label", "category", "ageRange", "minAgeMonths", "maxAgeMonths", "critical", "active", "displayOrder"],
+    fields: ["slug", "label", "category", "ageRange", "minAgeMonths", "maxAgeMonths", "critical", "active", "displayOrder"],
     icon: CheckCircle2
   },
   {
     key: "education",
     label: "Materi Edukasi",
     description: "Konten baca yang muncul di aplikasi user.",
-    fields: ["id", "title", "ageRange", "duration", "summary", "content", "published", "displayOrder"],
+    fields: ["title", "ageRange", "duration", "summary", "content", "published", "displayOrder"],
     icon: BookOpen
   },
   {
     key: "activities",
     label: "Stimulasi",
     description: "Aktivitas harian untuk orang tua.",
-    fields: ["id", "title", "ageRange", "duration", "description", "published", "displayOrder"],
+    fields: ["title", "ageRange", "duration", "description", "published", "displayOrder"],
     icon: Activity
   },
   {
     key: "ageRanges",
     label: "Rentang Usia",
     description: "Master data segmentasi usia.",
-    fields: ["id", "label", "minAgeMonths", "maxAgeMonths", "active", "displayOrder"],
+    fields: ["label", "minAgeMonths", "maxAgeMonths", "active", "displayOrder"],
     icon: LayoutDashboard
   },
   {
     key: "adminUsers",
     label: "Settings",
     description: "Akses admin, role, dan status login terakhir.",
-    fields: ["id", "email", "fullName", "role", "active", "lastLoginAt"],
+    fields: ["email", "fullName", "role", "active", "lastLoginAt"],
     icon: Settings
+  },
+  {
+    key: "users",
+    label: "Users",
+    description: "Daftar user aplikasi dan login terakhir.",
+    fields: ["email", "fullName", "createdAt", "lastLoginAt"],
+    icon: Users
   },
   {
     key: "feedback",
     label: "Feedback",
     description: "Masukan pengguna dari aplikasi utama.",
-    fields: ["id", "respondentName", "usabilityRating", "clarityRating", "visualRating", "usefulnessRating", "createdAt"],
+    fields: ["respondentName", "usabilityRating", "clarityRating", "visualRating", "usefulnessRating", "createdAt"],
     icon: MessageSquare
   }
 ];
@@ -86,6 +95,7 @@ const filterField = ref("");
 const filterValue = ref("");
 const loading = ref(true);
 const saving = ref(false);
+const isFormModalOpen = ref(false);
 const importResult = ref<ImportResult | null>(null);
 const errorMessage = ref("");
 const catalog = reactive<CatalogState>({
@@ -94,6 +104,7 @@ const catalog = reactive<CatalogState>({
   activities: [],
   ageRanges: [],
   adminUsers: [],
+  users: [],
   feedback: []
 });
 const form = reactive<Record<string, any>>({});
@@ -133,6 +144,9 @@ const sectionActiveCount = computed(() => {
   if (activeCategory.value === "feedback") {
     return catalog.feedback.filter((item) => item.usabilityRating >= 4).length;
   }
+  if (activeCategory.value === "users") {
+    return catalog.users.filter((item) => Boolean(item.lastLoginAt)).length;
+  }
   return (catalog[activeCategory.value] as CatalogRecord[]).filter((item) => Boolean((item as Record<string, unknown>).active)).length;
 });
 const sectionSecondaryLabel = computed(() => {
@@ -141,6 +155,9 @@ const sectionSecondaryLabel = computed(() => {
   }
   if (activeCategory.value === "feedback") {
     return "Rating >= 4";
+  }
+  if (activeCategory.value === "users") {
+    return "Pernah Login";
   }
   return "Active";
 });
@@ -201,6 +218,17 @@ function resetForm() {
   }
 }
 
+function openCreateModal() {
+  resetForm();
+  isFormModalOpen.value = true;
+}
+
+function closeFormModal() {
+  if (!saving.value) {
+    isFormModalOpen.value = false;
+  }
+}
+
 function defaultValue(field: string) {
   if (["active", "published", "critical"].includes(field)) {
     return true;
@@ -227,8 +255,12 @@ function defaultValue(field: string) {
 }
 
 function editRow(row: CatalogRecord) {
+  if (activeCategory.value === "users") {
+    return;
+  }
   resetForm();
   Object.assign(form, row);
+  isFormModalOpen.value = true;
 }
 
 function formatCell(value: unknown) {
@@ -271,6 +303,7 @@ async function saveRow() {
       throw new Error(String(response.Error));
     }
     await loadCatalog();
+    isFormModalOpen.value = false;
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : "Gagal menyimpan data.";
   } finally {
@@ -405,12 +438,12 @@ async function logout() {
           <strong>{{ sectionActiveCount }}</strong>
         </article>
         <article class="metric">
-          <span>{{ activeCategory === "adminUsers" ? "Last Login" : "Halaman" }}</span>
-          <strong>{{ activeCategory === "adminUsers" ? latestAdminLogin : `${currentPage}/${totalPages}` }}</strong>
+          <span>{{ activeCategory === "adminUsers" || activeCategory === "users" ? "Last Login" : "Halaman" }}</span>
+          <strong>{{ activeCategory === "adminUsers" || activeCategory === "users" ? latestAdminLogin : `${currentPage}/${totalPages}` }}</strong>
         </article>
       </section>
 
-      <section class="content-grid">
+      <section>
         <article class="panel table-panel">
           <div class="panel-header">
             <div>
@@ -418,6 +451,9 @@ async function logout() {
               <p>{{ activeSection.description }}</p>
             </div>
             <div class="toolbar">
+              <button v-if="activeCategory !== 'users'" class="icon-button" type="button" title="Tambah record" @click="openCreateModal">
+                <Plus :size="18" />
+              </button>
               <button class="icon-button" type="button" title="Download template" @click="downloadTemplate">
                 <Download :size="18" />
               </button>
@@ -483,19 +519,22 @@ async function logout() {
             </div>
           </div>
         </article>
+      </section>
+    </section>
 
-        <aside class="panel form-panel">
-          <div class="panel-header">
-            <div>
-              <h2>Control Handle</h2>
-              <p>Create or update {{ activeSection.label.toLowerCase() }}</p>
-            </div>
-            <button class="icon-button" type="button" title="Reset form" @click="resetForm">
-              <Plus :size="18" />
-            </button>
+    <div v-if="isFormModalOpen" class="modal-backdrop" role="presentation" @click.self="closeFormModal">
+      <section class="modal-panel" role="dialog" aria-modal="true" :aria-label="`Form ${activeSection.label}`">
+        <div class="panel-header">
+          <div>
+            <h2>Control Handle</h2>
+            <p>Create or update {{ activeSection.label.toLowerCase() }}</p>
           </div>
+          <button class="icon-button" type="button" title="Tutup modal" @click="closeFormModal">
+            <X :size="18" />
+          </button>
+        </div>
 
-          <form class="record-form" @submit.prevent="saveRow">
+        <form class="record-form" @submit.prevent="saveRow">
             <label v-for="field in visibleFields" :key="field">
               <span>{{ field }}</span>
               <select v-if="field === 'category'" v-model="form[field]">
@@ -528,8 +567,7 @@ async function logout() {
               <span>{{ saving ? "Saving" : "Save Control" }}</span>
             </button>
           </form>
-        </aside>
       </section>
-    </section>
+    </div>
   </main>
 </template>

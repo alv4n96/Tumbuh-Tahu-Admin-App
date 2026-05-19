@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const payload = await readBody<Record<string, unknown>>(event);
-  const record = normalizeRecord(category, payload);
+  const record = normalizeRecord(category, payload, { preserveEmptyId: true });
   const error = validateRecord(category, record);
   if (error) {
     return fail(error, 422);
