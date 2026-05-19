@@ -194,6 +194,7 @@ h2 {
 .metric strong {
   margin-top: 10px;
   font-size: 30px;
+  word-break: break-word;
 }
 
 .content-grid {
@@ -217,6 +218,34 @@ h2 {
   gap: 8px;
 }
 
+.grid-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(220px, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid #edf1ee;
+  border-radius: 8px;
+  background: #f8faf7;
+}
+
+.grid-controls label {
+  display: grid;
+  gap: 6px;
+  color: #65746a;
+  font-size: 13px;
+}
+
+.grid-controls input,
+.grid-controls select {
+  min-height: 38px;
+  border: 1px solid #d7dfd9;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #17211b;
+}
+
 .icon-button,
 .danger-button {
   display: inline-grid;
@@ -235,6 +264,39 @@ h2 {
 
 .table-wrap {
   overflow-x: auto;
+}
+
+.pagination-bar,
+.pagination-actions {
+  display: flex;
+  align-items: center;
+}
+
+.pagination-bar {
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  color: #65746a;
+  font-size: 14px;
+}
+
+.pagination-actions {
+  gap: 8px;
+}
+
+.pager-button {
+  min-width: 64px;
+  min-height: 34px;
+  border: 1px solid #d7dfd9;
+  border-radius: 8px;
+  background: #fff;
+  color: #244b35;
+  cursor: pointer;
+}
+
+.pager-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 table {
@@ -413,7 +475,13 @@ tbody tr:hover {
   }
 
   .metric-grid,
-  .nav-list {
+  .nav-list,
+  .grid-controls {
     grid-template-columns: 1fr;
+  }
+
+  .pagination-bar {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
