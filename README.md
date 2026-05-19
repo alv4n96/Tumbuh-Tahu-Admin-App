@@ -37,7 +37,7 @@ ADMIN_SESSION_SECRET=change-this-before-production
 
 ## Seed Admin Users
 
-Login is required before opening the admin panel. In production, login uses Supabase Auth and only users mapped in `public.app_roles` can enter the admin panel.
+Login is required before opening the admin panel. The login screen only asks for the password configured in `ADMIN_SEED_PASSWORD`.
 
 Development fallback seed is only used when Supabase env variables are not configured and `NODE_ENV` is not `production`:
 
@@ -48,8 +48,6 @@ Development fallback seed is only used when Supabase env variables are not confi
 | content@tumbuhtahu.test | editor | `TumbuhTahuAdmin#2026` |
 | clinic@tumbuhtahu.test | admin | `TumbuhTahuAdmin#2026` |
 | support@tumbuhtahu.test | editor | `TumbuhTahuAdmin#2026` |
-
-In production, create admin users in Supabase Auth, then map the roles into `public.app_roles`.
 
 `ADMIN_SESSION_SECRET` must be changed in production. Use a long random value.
 
