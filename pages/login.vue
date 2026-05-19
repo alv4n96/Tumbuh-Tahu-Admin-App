@@ -6,7 +6,6 @@ definePageMeta({
   layout: false
 });
 
-const email = ref("owner@tumbuhtahu.test");
 const password = ref("");
 const loading = ref(false);
 const errorMessage = ref("");
@@ -17,7 +16,7 @@ async function login() {
   try {
     const response = await $fetch<ApiResponse<AdminUser>>("/api/admin/auth/login", {
       method: "POST",
-      body: { email: email.value, password: password.value }
+      body: { password: password.value }
     });
     if (response.Error || !response.Data) {
       throw new Error(String(response.Error || "Login gagal."));
@@ -48,10 +47,6 @@ async function login() {
       </div>
 
       <form class="record-form" @submit.prevent="login">
-        <label>
-          <span>Email</span>
-          <input v-model="email" type="email" autocomplete="email" required />
-        </label>
         <label>
           <span>Password</span>
           <input v-model="password" type="password" autocomplete="current-password" required />

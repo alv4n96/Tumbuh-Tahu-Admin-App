@@ -1,6 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { H3Event } from "h3";
-import { adminUsers, getSupabaseAdmin, getSupabasePublicClient, requireDatabaseInThisEnvironment } from "./catalog";
 import type { AdminUser } from "../../types/admin";
 
 const cookieName = "tt_admin_session";
@@ -15,8 +14,19 @@ export function getSeedPassword() {
   return String(useRuntimeConfig().adminSeedPassword);
 }
 
-export function findSeedAdmin(email: string) {
-  return adminUsers.find((user) => user.active && user.email.toLowerCase() === email.toLowerCase());
+export function loginAdmin(password: string) {
+  if (!password || password !== getSeedPassword()) {
+    return null;
+  }
+
+  return {
+    id: "env-admin",
+    email: "admin@tumbuhtahu.local",
+    fullName: "Environment Admin",
+    role: "owner",
+    active: true,
+    lastLoginAt: new Date().toISOString()
+  } satisfies AdminUser;
 }
 
 export async function loginAdmin(email: string, password: string) {
