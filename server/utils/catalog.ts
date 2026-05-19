@@ -103,11 +103,11 @@ const activities: DailyActivity[] = [
 ];
 
 export const adminUsers: AdminUser[] = [
-  { id: "owner", email: "owner@tumbuhtahu.test", fullName: "Owner Tumbuh Tahu", role: "owner", active: true },
-  { id: "admin-growth", email: "growth@tumbuhtahu.test", fullName: "Admin Growth", role: "admin", active: true },
-  { id: "admin-content", email: "content@tumbuhtahu.test", fullName: "Admin Content", role: "editor", active: true },
-  { id: "admin-clinic", email: "clinic@tumbuhtahu.test", fullName: "Admin Clinic", role: "admin", active: true },
-  { id: "admin-support", email: "support@tumbuhtahu.test", fullName: "Admin Support", role: "editor", active: true }
+  { id: "owner", email: "owner@tumbuhtahu.test", fullName: "Owner Tumbuh Tahu", role: "owner", active: true, lastLoginAt: null },
+  { id: "admin-growth", email: "growth@tumbuhtahu.test", fullName: "Admin Growth", role: "admin", active: true, lastLoginAt: null },
+  { id: "admin-content", email: "content@tumbuhtahu.test", fullName: "Admin Content", role: "editor", active: true, lastLoginAt: null },
+  { id: "admin-clinic", email: "clinic@tumbuhtahu.test", fullName: "Admin Clinic", role: "admin", active: true, lastLoginAt: null },
+  { id: "admin-support", email: "support@tumbuhtahu.test", fullName: "Admin Support", role: "editor", active: true, lastLoginAt: null }
 ];
 
 export const catalogKeys: CatalogCategory[] = ["milestones", "education", "activities", "ageRanges", "adminUsers"];
@@ -117,7 +117,7 @@ export const templates: Record<CatalogCategory, string[]> = {
   education: ["id", "title", "ageRange", "duration", "summary", "content", "published", "displayOrder"],
   activities: ["id", "title", "ageRange", "duration", "description", "published", "displayOrder"],
   ageRanges: ["id", "label", "minAgeMonths", "maxAgeMonths", "active", "displayOrder"],
-  adminUsers: ["id", "email", "fullName", "role", "active"]
+  adminUsers: ["id", "email", "fullName", "role", "active", "lastLoginAt"]
 };
 
 export function seedCatalog(): CatalogState {
@@ -280,7 +280,8 @@ export function normalizeRecord(category: CatalogCategory, input: Record<string,
     email: String(input.email || ""),
     fullName: String(input.fullName || ""),
     role: String(input.role || "admin") as AdminUser["role"],
-    active: input.active === undefined ? true : parseBoolean(input.active)
+    active: input.active === undefined ? true : parseBoolean(input.active),
+    lastLoginAt: input.lastLoginAt ? String(input.lastLoginAt) : null
   };
 }
 
@@ -437,7 +438,8 @@ async function getSupabaseCatalogState() {
         email: authUser?.email ?? `${roleRow.user_id}@unknown.local`,
         fullName: profiles.get(roleRow.user_id) ?? authUser?.user_metadata?.full_name ?? "Admin User",
         role: roleRow.role,
-        active: true
+        active: true,
+        lastLoginAt: authUser?.last_sign_in_at ?? null
       };
     }) as AdminUser[]
   } satisfies CatalogState;

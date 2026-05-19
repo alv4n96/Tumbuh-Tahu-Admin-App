@@ -63,6 +63,7 @@ export type AdminUser = {
   fullName: string;
   role: AdminRole;
   active: boolean;
+  lastLoginAt?: string | null;
 };
 
 export type CatalogRecord = MilestoneItem | EducationMaterial | DailyActivity | AgeRangeRecord | AdminUser;

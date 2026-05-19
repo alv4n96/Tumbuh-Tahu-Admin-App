@@ -9,10 +9,10 @@ import {
   LogOut,
   Plus,
   Search,
+  Settings,
   Shield,
   Trash2,
-  Upload,
-  Users
+  Upload
 } from "lucide-vue-next";
 import type { Component } from "vue";
 import type {
@@ -63,14 +63,16 @@ const sections: SectionConfig[] = [
   },
   {
     key: "adminUsers",
-    label: "Admin Users",
-    description: "Akses multi-admin dan role awal.",
-    fields: ["id", "email", "fullName", "role", "active"],
-    icon: Users
+    label: "Settings",
+    description: "Akses admin, role, dan status login terakhir.",
+    fields: ["id", "email", "fullName", "role", "active", "lastLoginAt"],
+    icon: Settings
   }
 ];
 
+const pageSize = 10;
 const activeCategory = ref<CatalogCategory>("milestones");
+const currentPage = ref(1);
 const search = ref("");
 const loading = ref(true);
 const saving = ref(false);
@@ -96,11 +98,35 @@ const activeRows = computed(() => {
   return rows.filter((row) => JSON.stringify(row).toLowerCase().includes(query));
 });
 const visibleFields = computed(() => activeSection.value.fields);
-const totalPublished = computed(() =>
-  catalog.milestones.filter((item) => item.active).length +
-  catalog.education.filter((item) => item.published).length +
-  catalog.activities.filter((item) => item.published).length
-);
+const totalPages = computed(() => Math.max(1, Math.ceil(activeRows.value.length / pageSize)));
+const paginatedRows = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return activeRows.value.slice(start, start + pageSize);
+});
+const pageStart = computed(() => (activeRows.value.length ? (currentPage.value - 1) * pageSize + 1 : 0));
+const pageEnd = computed(() => Math.min(currentPage.value * pageSize, activeRows.value.length));
+const sectionActiveCount = computed(() => {
+  if (activeCategory.value === "education") {
+    return catalog.education.filter((item) => item.published).length;
+  }
+  if (activeCategory.value === "activities") {
+    return catalog.activities.filter((item) => item.published).length;
+  }
+  return (catalog[activeCategory.value] as CatalogRecord[]).filter((item) => Boolean((item as Record<string, unknown>).active)).length;
+});
+const sectionSecondaryLabel = computed(() => {
+  if (activeCategory.value === "education" || activeCategory.value === "activities") {
+    return "Published";
+  }
+  return "Active";
+});
+const latestAdminLogin = computed(() => {
+  const users = catalog.adminUsers
+    .map((user) => user.lastLoginAt)
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+  return users[0] ? formatDateTime(users[0]) : "Belum ada";
+});
 const adminSummary = computed(() => {
   const active = catalog.adminUsers.filter((user: AdminUser) => user.active).length;
   return `${active}/${catalog.adminUsers.length} aktif`;
@@ -108,9 +134,18 @@ const adminSummary = computed(() => {
 
 onMounted(loadCatalog);
 watch(activeCategory, () => {
+  currentPage.value = 1;
   importResult.value = null;
   errorMessage.value = "";
   resetForm();
+});
+watch(search, () => {
+  currentPage.value = 1;
+});
+watch(totalPages, () => {
+  if (currentPage.value > totalPages.value) {
+    currentPage.value = totalPages.value;
+  }
 });
 
 async function loadCatalog() {
@@ -162,6 +197,34 @@ function defaultValue(field: string) {
 function editRow(row: CatalogRecord) {
   resetForm();
   Object.assign(form, row);
+}
+
+function formatCell(value: unknown) {
+  if (typeof value === "boolean") {
+    return value ? "Ya" : "Tidak";
+  }
+  if (!value) {
+    return "-";
+  }
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    return formatDateTime(value);
+  }
+  return value;
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
+}
+
+function previousPage() {
+  currentPage.value = Math.max(1, currentPage.value - 1);
+}
+
+function nextPage() {
+  currentPage.value = Math.min(totalPages.value, currentPage.value + 1);
 }
 
 async function saveRow() {
@@ -302,16 +365,16 @@ async function logout() {
 
       <section class="metric-grid" aria-label="Admin metrics">
         <article class="metric">
-          <span>Total Kontrol</span>
-          <strong>{{ catalog.milestones.length + catalog.education.length + catalog.activities.length }}</strong>
+          <span>Total {{ activeSection.label }}</span>
+          <strong>{{ activeRows.length }}</strong>
         </article>
         <article class="metric">
-          <span>Published/Active</span>
-          <strong>{{ totalPublished }}</strong>
+          <span>{{ sectionSecondaryLabel }}</span>
+          <strong>{{ sectionActiveCount }}</strong>
         </article>
         <article class="metric">
-          <span>Admin Users</span>
-          <strong>{{ adminSummary }}</strong>
+          <span>{{ activeCategory === "adminUsers" ? "Last Login" : "Halaman" }}</span>
+          <strong>{{ activeCategory === "adminUsers" ? latestAdminLogin : `${currentPage}/${totalPages}` }}</strong>
         </article>
       </section>
 
@@ -351,9 +414,9 @@ async function logout() {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in activeRows" :key="row.id" @click="editRow(row)">
+                <tr v-for="row in paginatedRows" :key="row.id" @click="editRow(row)">
                   <td v-for="field in visibleFields.slice(0, 6)" :key="field">
-                    {{ (row as Record<string, unknown>)[field] }}
+                    {{ formatCell((row as Record<string, unknown>)[field]) }}
                   </td>
                   <td>
                     <button class="danger-button" type="button" title="Delete" @click.stop="deleteRow(row)">
@@ -363,6 +426,15 @@ async function logout() {
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <div v-if="!loading && activeRows.length" class="pagination-bar">
+            <span>Menampilkan {{ pageStart }}-{{ pageEnd }} dari {{ activeRows.length }}</span>
+            <div class="pagination-actions">
+              <button class="pager-button" type="button" :disabled="currentPage === 1" @click="previousPage">Prev</button>
+              <span>Page {{ currentPage }} / {{ totalPages }}</span>
+              <button class="pager-button" type="button" :disabled="currentPage === totalPages" @click="nextPage">Next</button>
+            </div>
           </div>
         </article>
 
@@ -394,6 +466,7 @@ async function logout() {
                 <option>admin</option>
                 <option>editor</option>
               </select>
+              <input v-else-if="field === 'lastLoginAt'" v-model="form[field]" type="text" disabled />
               <input v-else-if="['active', 'published', 'critical'].includes(field)" v-model="form[field]" type="checkbox" />
               <input v-else-if="['minAgeMonths', 'maxAgeMonths', 'displayOrder'].includes(field)" v-model.number="form[field]" type="number" />
               <textarea v-else-if="['summary', 'content', 'description'].includes(field)" v-model="form[field]" rows="3" />
