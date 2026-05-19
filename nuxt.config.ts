@@ -4,6 +4,8 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
   runtimeConfig: {
     adminSeedPassword: process.env.ADMIN_SEED_PASSWORD || "TumbuhTahuAdmin#2026",
+    adminSessionSecret: process.env.ADMIN_SESSION_SECRET || "change-this-before-production",
+    supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
     public: {
       appName: "Tumbuh Tahu Admin",
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || "",

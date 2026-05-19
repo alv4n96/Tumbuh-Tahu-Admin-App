@@ -1,8 +1,10 @@
 import type { CatalogRecord } from "../../../../types/admin";
 import { fail, ok } from "../../../utils/api";
-import { getCatalogState, isCatalogCategory, normalizeRecord, saveCatalogState, validateRecord } from "../../../utils/catalog";
+import { isCatalogCategory, normalizeRecord, upsertCatalogRecord, validateRecord } from "../../../utils/catalog";
+import { requireAdminSession } from "../../../utils/auth";
 
 export default defineEventHandler(async (event) => {
+  requireAdminSession(event);
   const category = String(getRouterParam(event, "category"));
   if (!isCatalogCategory(category)) {
     return fail(`Unknown category: ${category}`, 404);
@@ -15,9 +17,6 @@ export default defineEventHandler(async (event) => {
     return fail(error, 422);
   }
 
-  const state = await getCatalogState();
-  const list = state[category] as CatalogRecord[];
-  state[category] = [record, ...list.filter((item) => item.id !== record.id)] as never;
-  await saveCatalogState(state);
+  await upsertCatalogRecord(category, record);
   return ok(record, 201);
 });

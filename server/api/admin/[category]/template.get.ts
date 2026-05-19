@@ -1,7 +1,9 @@
 import { fail } from "../../../utils/api";
 import { isCatalogCategory, templates } from "../../../utils/catalog";
+import { requireAdminSession } from "../../../utils/auth";
 
 export default defineEventHandler((event) => {
+  requireAdminSession(event);
   const category = String(getRouterParam(event, "category"));
   if (!isCatalogCategory(category)) {
     return fail(`Unknown category: ${category}`, 404);

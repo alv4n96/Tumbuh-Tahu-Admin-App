@@ -6,7 +6,7 @@ Nuxt admin panel untuk mengontrol data yang digunakan oleh Tumbuh Tahu App: mile
 
 - Vue 3 + Nuxt 3
 - Nitro server API
-- Supabase module ready for integration
+- Supabase server client for production data control
 - Vercel deployment preset
 
 ## Local Setup
@@ -32,11 +32,12 @@ NUXT_PUBLIC_SUPABASE_URL=
 NUXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ADMIN_SEED_PASSWORD=TumbuhTahuAdmin#2026
+ADMIN_SESSION_SECRET=change-this-before-production
 ```
 
 ## Seed Admin Users
 
-Development seed includes 5 admin users:
+Login is required before opening the admin panel. Development seed includes 5 admin users:
 
 | Email | Role | Password |
 | --- | --- | --- |
@@ -47,6 +48,8 @@ Development seed includes 5 admin users:
 | support@tumbuhtahu.test | editor | `TumbuhTahuAdmin#2026` |
 
 In production, create these users in Supabase Auth, then map the roles into `public.app_roles`.
+
+`ADMIN_SESSION_SECRET` must be changed in production. Use a long random value.
 
 ## API Contract
 
@@ -71,6 +74,18 @@ The dashboard exposes CRUD controls for:
 - `adminUsers`
 
 Each category supports CSV template download and bulk insert from the UI. Templates are category-specific and available from the toolbar on each table.
+
+When `NUXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are configured, the admin API reads and writes the real Supabase tables:
+
+- `public.milestones`
+- `public.education_materials`
+- `public.stimulation_activities`
+- `public.age_ranges`
+- `public.app_roles`
+- `public.user_profiles`
+- `auth.users` for admin email lookup
+
+Without those variables, the app falls back to in-memory seed data for local UI preview only.
 
 ## Vercel
 

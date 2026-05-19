@@ -6,6 +6,7 @@ import {
   Download,
   LayoutDashboard,
   Loader2,
+  LogOut,
   Plus,
   Search,
   Shield,
@@ -241,6 +242,11 @@ function parseCsv(text: string) {
       return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
     });
 }
+
+async function logout() {
+  await $fetch("/api/admin/auth/logout", { method: "POST" });
+  await navigateTo("/login");
+}
 </script>
 
 <template>
@@ -283,9 +289,14 @@ function parseCsv(text: string) {
           <p class="eyebrow">Business Analytics App</p>
           <h1>Admin Panel</h1>
         </div>
-        <div class="search-box">
-          <Search :size="18" />
-          <input v-model="search" type="search" placeholder="Search catalog data" />
+        <div class="topbar-actions">
+          <div class="search-box">
+            <Search :size="18" />
+            <input v-model="search" type="search" placeholder="Search catalog data" />
+          </div>
+          <button class="icon-button" type="button" title="Logout" @click="logout">
+            <LogOut :size="18" />
+          </button>
         </div>
       </header>
 
