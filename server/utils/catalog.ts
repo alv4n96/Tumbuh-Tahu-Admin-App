@@ -7,6 +7,7 @@ import type {
   CatalogState,
   DailyActivity,
   EducationMaterial,
+  FeedbackRecord,
   MilestoneItem
 } from "../../types/admin";
 
@@ -110,14 +111,15 @@ export const adminUsers: AdminUser[] = [
   { id: "admin-support", email: "support@tumbuhtahu.test", fullName: "Admin Support", role: "editor", active: true, lastLoginAt: null }
 ];
 
-export const catalogKeys: CatalogCategory[] = ["milestones", "education", "activities", "ageRanges", "adminUsers"];
+export const catalogKeys: CatalogCategory[] = ["milestones", "education", "activities", "ageRanges", "adminUsers", "feedback"];
 
 export const templates: Record<CatalogCategory, string[]> = {
   milestones: ["id", "slug", "label", "category", "ageRange", "minAgeMonths", "maxAgeMonths", "critical", "active", "displayOrder"],
   education: ["id", "title", "ageRange", "duration", "summary", "content", "published", "displayOrder"],
   activities: ["id", "title", "ageRange", "duration", "description", "published", "displayOrder"],
   ageRanges: ["id", "label", "minAgeMonths", "maxAgeMonths", "active", "displayOrder"],
-  adminUsers: ["id", "email", "fullName", "role", "active", "lastLoginAt"]
+  adminUsers: ["id", "email", "fullName", "role", "active", "lastLoginAt"],
+  feedback: ["id", "respondentName", "usabilityRating", "clarityRating", "visualRating", "usefulnessRating", "createdAt"]
 };
 
 export function seedCatalog(): CatalogState {
@@ -126,7 +128,8 @@ export function seedCatalog(): CatalogState {
     education: structuredClone(education),
     activities: structuredClone(activities),
     ageRanges: structuredClone(ageRanges),
-    adminUsers: structuredClone(adminUsers)
+    adminUsers: structuredClone(adminUsers),
+    feedback: []
   };
 }
 
@@ -275,6 +278,24 @@ export function normalizeRecord(category: CatalogCategory, input: Record<string,
     };
   }
 
+  if (category === "feedback") {
+    return {
+      id,
+      respondentName: String(input.respondentName || ""),
+      ownerId: input.ownerId ? String(input.ownerId) : null,
+      flowAnswer: input.flowAnswer ? String(input.flowAnswer) : null,
+      helpfulAnswer: input.helpfulAnswer ? String(input.helpfulAnswer) : null,
+      confusingAnswer: input.confusingAnswer ? String(input.confusingAnswer) : null,
+      languageAnswer: input.languageAnswer ? String(input.languageAnswer) : null,
+      featuresAnswer: input.featuresAnswer ? String(input.featuresAnswer) : null,
+      usabilityRating: Number(input.usabilityRating || 0),
+      clarityRating: Number(input.clarityRating || 0),
+      visualRating: Number(input.visualRating || 0),
+      usefulnessRating: Number(input.usefulnessRating || 0),
+      createdAt: input.createdAt ? String(input.createdAt) : new Date().toISOString()
+    };
+  }
+
   return {
     id,
     email: String(input.email || ""),
@@ -363,7 +384,7 @@ async function getSupabaseCatalogState() {
     return null;
   }
 
-  const [ageRangesResult, milestonesResult, educationResult, activitiesResult, rolesResult, usersResult, profilesResult] = await Promise.all([
+  const [ageRangesResult, milestonesResult, educationResult, activitiesResult, rolesResult, usersResult, profilesResult, feedbackResult] = await Promise.all([
     supabase.from("age_ranges").select("label,min_age_months,max_age_months,is_active,display_order").order("display_order", { ascending: true }),
     supabase
       .from("milestones")
@@ -379,10 +400,22 @@ async function getSupabaseCatalogState() {
       .order("display_order", { ascending: true }),
     supabase.from("app_roles").select("user_id,role"),
     supabase.auth.admin.listUsers(),
-    supabase.from("user_profiles").select("id,full_name")
+    supabase.from("user_profiles").select("id,full_name"),
+    supabase
+      .from("usability_feedback")
+      .select("id,owner_id,respondent_name,flow_answer,helpful_answer,confusing_answer,language_answer,features_answer,usability_rating,clarity_rating,visual_rating,usefulness_rating,created_at")
+      .order("created_at", { ascending: false })
   ]);
 
-  const firstError = ageRangesResult.error || milestonesResult.error || educationResult.error || activitiesResult.error || rolesResult.error || profilesResult.error || usersResult.error;
+  const firstError =
+    ageRangesResult.error ||
+    milestonesResult.error ||
+    educationResult.error ||
+    activitiesResult.error ||
+    rolesResult.error ||
+    profilesResult.error ||
+    feedbackResult.error ||
+    usersResult.error;
   if (firstError) {
     throw createError({ statusCode: 500, statusMessage: firstError.message });
   }
@@ -441,7 +474,22 @@ async function getSupabaseCatalogState() {
         active: true,
         lastLoginAt: authUser?.last_sign_in_at ?? null
       };
-    }) as AdminUser[]
+    }) as AdminUser[],
+    feedback: (feedbackResult.data ?? []).map((item) => ({
+      id: item.id,
+      ownerId: item.owner_id,
+      respondentName: item.respondent_name,
+      flowAnswer: item.flow_answer,
+      helpfulAnswer: item.helpful_answer,
+      confusingAnswer: item.confusing_answer,
+      languageAnswer: item.language_answer,
+      featuresAnswer: item.features_answer,
+      usabilityRating: item.usability_rating,
+      clarityRating: item.clarity_rating,
+      visualRating: item.visual_rating,
+      usefulnessRating: item.usefulness_rating,
+      createdAt: item.created_at
+    })) as FeedbackRecord[]
   } satisfies CatalogState;
 }
 
@@ -451,7 +499,8 @@ function tableForCategory(category: CatalogCategory) {
     education: "education_materials",
     activities: "stimulation_activities",
     ageRanges: "age_ranges",
-    adminUsers: "app_roles"
+    adminUsers: "app_roles",
+    feedback: "usability_feedback"
   };
   return tables[category];
 }
@@ -507,6 +556,25 @@ function toDatabaseRecord(category: CatalogCategory, record: CatalogRecord) {
       max_age_months: item.maxAgeMonths,
       is_active: item.active,
       display_order: item.displayOrder
+    };
+  }
+
+  if (category === "feedback") {
+    const item = record as FeedbackRecord;
+    return {
+      id: item.id,
+      owner_id: item.ownerId,
+      respondent_name: item.respondentName,
+      flow_answer: item.flowAnswer,
+      helpful_answer: item.helpfulAnswer,
+      confusing_answer: item.confusingAnswer,
+      language_answer: item.languageAnswer,
+      features_answer: item.featuresAnswer,
+      usability_rating: item.usabilityRating,
+      clarity_rating: item.clarityRating,
+      visual_rating: item.visualRating,
+      usefulness_rating: item.usefulnessRating,
+      created_at: item.createdAt
     };
   }
 

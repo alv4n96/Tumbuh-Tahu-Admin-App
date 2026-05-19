@@ -218,6 +218,34 @@ h2 {
   gap: 8px;
 }
 
+.grid-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(220px, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid #edf1ee;
+  border-radius: 8px;
+  background: #f8faf7;
+}
+
+.grid-controls label {
+  display: grid;
+  gap: 6px;
+  color: #65746a;
+  font-size: 13px;
+}
+
+.grid-controls input,
+.grid-controls select {
+  min-height: 38px;
+  border: 1px solid #d7dfd9;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #17211b;
+}
+
 .icon-button,
 .danger-button {
   display: inline-grid;
@@ -447,7 +475,8 @@ tbody tr:hover {
   }
 
   .metric-grid,
-  .nav-list {
+  .nav-list,
+  .grid-controls {
     grid-template-columns: 1fr;
   }
 

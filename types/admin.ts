@@ -12,7 +12,7 @@ export type ChecklistCategory = "Motorik Kasar" | "Motorik Halus" | "Bahasa" | "
 
 export type AdminRole = "owner" | "admin" | "editor";
 
-export type CatalogCategory = "milestones" | "education" | "activities" | "ageRanges" | "adminUsers";
+export type CatalogCategory = "milestones" | "education" | "activities" | "ageRanges" | "adminUsers" | "feedback";
 
 export type MilestoneItem = {
   id: string;
@@ -66,7 +66,23 @@ export type AdminUser = {
   lastLoginAt?: string | null;
 };
 
-export type CatalogRecord = MilestoneItem | EducationMaterial | DailyActivity | AgeRangeRecord | AdminUser;
+export type FeedbackRecord = {
+  id: string;
+  respondentName: string;
+  ownerId?: string | null;
+  flowAnswer?: string | null;
+  helpfulAnswer?: string | null;
+  confusingAnswer?: string | null;
+  languageAnswer?: string | null;
+  featuresAnswer?: string | null;
+  usabilityRating: number;
+  clarityRating: number;
+  visualRating: number;
+  usefulnessRating: number;
+  createdAt: string;
+};
+
+export type CatalogRecord = MilestoneItem | EducationMaterial | DailyActivity | AgeRangeRecord | AdminUser | FeedbackRecord;
 
 export type CatalogState = {
   milestones: MilestoneItem[];
@@ -74,6 +90,7 @@ export type CatalogState = {
   activities: DailyActivity[];
   ageRanges: AgeRangeRecord[];
   adminUsers: AdminUser[];
+  feedback: FeedbackRecord[];
 };
 
 export type ImportResult = {

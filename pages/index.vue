@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Loader2,
   LogOut,
+  MessageSquare,
   Plus,
   Search,
   Settings,
@@ -67,6 +68,13 @@ const sections: SectionConfig[] = [
     description: "Akses admin, role, dan status login terakhir.",
     fields: ["id", "email", "fullName", "role", "active", "lastLoginAt"],
     icon: Settings
+  },
+  {
+    key: "feedback",
+    label: "Feedback",
+    description: "Masukan pengguna dari aplikasi utama.",
+    fields: ["id", "respondentName", "usabilityRating", "clarityRating", "visualRating", "usefulnessRating", "createdAt"],
+    icon: MessageSquare
   }
 ];
 
@@ -74,6 +82,8 @@ const pageSize = 10;
 const activeCategory = ref<CatalogCategory>("milestones");
 const currentPage = ref(1);
 const search = ref("");
+const filterField = ref("");
+const filterValue = ref("");
 const loading = ref(true);
 const saving = ref(false);
 const importResult = ref<ImportResult | null>(null);
@@ -83,14 +93,22 @@ const catalog = reactive<CatalogState>({
   education: [],
   activities: [],
   ageRanges: [],
-  adminUsers: []
+  adminUsers: [],
+  feedback: []
 });
 const form = reactive<Record<string, any>>({});
 
 const activeSection = computed(() => sections.find((section) => section.key === activeCategory.value) || sections[0]);
 const activeRows = computed(() => {
   const query = search.value.toLowerCase().trim();
-  const rows = catalog[activeCategory.value] as CatalogRecord[];
+  const field = filterField.value;
+  const value = filterValue.value.toLowerCase().trim();
+  let rows = catalog[activeCategory.value] as CatalogRecord[];
+
+  if (field && value) {
+    rows = rows.filter((row) => String((row as Record<string, unknown>)[field] ?? "").toLowerCase().includes(value));
+  }
+
   if (!query) {
     return rows;
   }
@@ -112,11 +130,17 @@ const sectionActiveCount = computed(() => {
   if (activeCategory.value === "activities") {
     return catalog.activities.filter((item) => item.published).length;
   }
+  if (activeCategory.value === "feedback") {
+    return catalog.feedback.filter((item) => item.usabilityRating >= 4).length;
+  }
   return (catalog[activeCategory.value] as CatalogRecord[]).filter((item) => Boolean((item as Record<string, unknown>).active)).length;
 });
 const sectionSecondaryLabel = computed(() => {
   if (activeCategory.value === "education" || activeCategory.value === "activities") {
     return "Published";
+  }
+  if (activeCategory.value === "feedback") {
+    return "Rating >= 4";
   }
   return "Active";
 });
@@ -135,11 +159,13 @@ const adminSummary = computed(() => {
 onMounted(loadCatalog);
 watch(activeCategory, () => {
   currentPage.value = 1;
+  filterField.value = "";
+  filterValue.value = "";
   importResult.value = null;
   errorMessage.value = "";
   resetForm();
 });
-watch(search, () => {
+watch([search, filterField, filterValue], () => {
   currentPage.value = 1;
 });
 watch(totalPages, () => {
@@ -190,6 +216,12 @@ function defaultValue(field: string) {
   }
   if (field === "role") {
     return "admin";
+  }
+  if (["usabilityRating", "clarityRating", "visualRating", "usefulnessRating"].includes(field)) {
+    return 0;
+  }
+  if (field === "createdAt") {
+    return new Date().toISOString();
   }
   return "";
 }
@@ -396,6 +428,20 @@ async function logout() {
             </div>
           </div>
 
+          <div class="grid-controls">
+            <label>
+              <span>Filter Kolom</span>
+              <select v-model="filterField">
+                <option value="">Semua kolom</option>
+                <option v-for="field in visibleFields" :key="field" :value="field">{{ field }}</option>
+              </select>
+            </label>
+            <label>
+              <span>Nilai Filter</span>
+              <input v-model="filterValue" type="text" :disabled="!filterField" placeholder="Ketik nilai filter" />
+            </label>
+          </div>
+
           <div v-if="loading" class="state">
             <Loader2 class="spin" :size="22" />
             <span>Loading data</span>
@@ -468,7 +514,7 @@ async function logout() {
               </select>
               <input v-else-if="field === 'lastLoginAt'" v-model="form[field]" type="text" disabled />
               <input v-else-if="['active', 'published', 'critical'].includes(field)" v-model="form[field]" type="checkbox" />
-              <input v-else-if="['minAgeMonths', 'maxAgeMonths', 'displayOrder'].includes(field)" v-model.number="form[field]" type="number" />
+              <input v-else-if="['minAgeMonths', 'maxAgeMonths', 'displayOrder', 'usabilityRating', 'clarityRating', 'visualRating', 'usefulnessRating'].includes(field)" v-model.number="form[field]" type="number" />
               <textarea v-else-if="['summary', 'content', 'description'].includes(field)" v-model="form[field]" rows="3" />
               <input v-else v-model="form[field]" type="text" />
             </label>
