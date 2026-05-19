@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import type {
   AdminUser,
   AgeRangeRecord,
@@ -101,7 +102,7 @@ const activities: DailyActivity[] = [
   }
 ];
 
-const adminUsers: AdminUser[] = [
+export const adminUsers: AdminUser[] = [
   { id: "owner", email: "owner@tumbuhtahu.test", fullName: "Owner Tumbuh Tahu", role: "owner", active: true },
   { id: "admin-growth", email: "growth@tumbuhtahu.test", fullName: "Admin Growth", role: "admin", active: true },
   { id: "admin-content", email: "content@tumbuhtahu.test", fullName: "Admin Content", role: "editor", active: true },
@@ -134,6 +135,11 @@ export function isCatalogCategory(value: string): value is CatalogCategory {
 }
 
 export async function getCatalogState() {
+  const supabaseState = await getSupabaseCatalogState();
+  if (supabaseState) {
+    return supabaseState;
+  }
+
   const storage = useStorage<CatalogState>("adminCatalog");
   const existing = await storage.getItem("state");
   if (existing) {
@@ -148,6 +154,60 @@ export async function getCatalogState() {
 export async function saveCatalogState(state: CatalogState) {
   const storage = useStorage<CatalogState>("adminCatalog");
   await storage.setItem("state", state);
+}
+
+export async function upsertCatalogRecord(category: CatalogCategory, record: CatalogRecord) {
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    const table = tableForCategory(category);
+    const payload = toDatabaseRecord(category, record);
+    const { error } = await supabase.from(table).upsert(payload as never);
+    if (error) {
+      throw createError({ statusCode: 500, statusMessage: error.message });
+    }
+    return;
+  }
+
+  const state = await getCatalogState();
+  const list = state[category] as CatalogRecord[];
+  state[category] = [record, ...list.filter((item) => item.id !== record.id)] as never;
+  await saveCatalogState(state);
+}
+
+export async function deleteCatalogRecord(category: CatalogCategory, id: string) {
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    const table = tableForCategory(category);
+    const { error } = await supabase.from(table).delete().eq(category === "milestones" ? "slug" : "id", id);
+    if (error) {
+      throw createError({ statusCode: 500, statusMessage: error.message });
+    }
+    return;
+  }
+
+  const state = await getCatalogState();
+  const list = state[category] as CatalogRecord[];
+  state[category] = list.filter((item) => item.id !== id) as never;
+  await saveCatalogState(state);
+}
+
+export async function bulkUpsertCatalogRecords(category: CatalogCategory, records: CatalogRecord[]) {
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    const table = tableForCategory(category);
+    const payload = records.map((record) => toDatabaseRecord(category, record));
+    const { error } = await supabase.from(table).upsert(payload as never);
+    if (error) {
+      throw createError({ statusCode: 500, statusMessage: error.message });
+    }
+    return;
+  }
+
+  const state = await getCatalogState();
+  const list = state[category] as CatalogRecord[];
+  const incomingIds = new Set(records.map((item) => item.id));
+  state[category] = [...records, ...list.filter((item) => !incomingIds.has(item.id))] as never;
+  await saveCatalogState(state);
 }
 
 export function normalizeRecord(category: CatalogCategory, input: Record<string, unknown>): CatalogRecord {
@@ -234,4 +294,183 @@ export function validateRecord(category: CatalogCategory, input: CatalogRecord) 
 
 function parseBoolean(value: unknown) {
   return value === true || String(value).toLowerCase() === "true" || String(value) === "1" || String(value).toLowerCase() === "yes";
+}
+
+function getSupabaseAdmin() {
+  const config = useRuntimeConfig();
+  const url = String(config.public.supabaseUrl || process.env.NUXT_PUBLIC_SUPABASE_URL || "");
+  const serviceRoleKey = String(config.supabaseServiceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY || "");
+  if (!url || !serviceRoleKey) {
+    return null;
+  }
+
+  return createClient(url, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+}
+
+async function getSupabaseCatalogState() {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    return null;
+  }
+
+  const [ageRangesResult, milestonesResult, educationResult, activitiesResult, rolesResult, usersResult, profilesResult] = await Promise.all([
+    supabase.from("age_ranges").select("label,min_age_months,max_age_months,is_active,display_order").order("display_order", { ascending: true }),
+    supabase
+      .from("milestones")
+      .select("id,slug,label,category,age_range,is_critical,min_age_months,max_age_months,is_active,display_order")
+      .order("display_order", { ascending: true }),
+    supabase
+      .from("education_materials")
+      .select("id,title,age_range,duration_label,summary,content,is_published,display_order")
+      .order("display_order", { ascending: true }),
+    supabase
+      .from("stimulation_activities")
+      .select("id,title,age_range,duration_label,description,is_published,display_order")
+      .order("display_order", { ascending: true }),
+    supabase.from("app_roles").select("user_id,role"),
+    supabase.auth.admin.listUsers(),
+    supabase.from("user_profiles").select("id,full_name")
+  ]);
+
+  const firstError = ageRangesResult.error || milestonesResult.error || educationResult.error || activitiesResult.error || rolesResult.error || profilesResult.error || usersResult.error;
+  if (firstError) {
+    throw createError({ statusCode: 500, statusMessage: firstError.message });
+  }
+
+  const authUsers = usersResult.data.users;
+  const profiles = new Map((profilesResult.data ?? []).map((profile) => [profile.id, profile.full_name]));
+  const roleRows = rolesResult.data ?? [];
+
+  return {
+    ageRanges: (ageRangesResult.data ?? []).map((item) => ({
+      id: slugify(item.label),
+      label: item.label,
+      minAgeMonths: item.min_age_months,
+      maxAgeMonths: item.max_age_months,
+      active: item.is_active,
+      displayOrder: item.display_order
+    })) as AgeRangeRecord[],
+    milestones: (milestonesResult.data ?? []).map((item) => ({
+      id: item.slug,
+      slug: item.slug,
+      label: item.label,
+      category: item.category,
+      ageRange: item.age_range,
+      minAgeMonths: item.min_age_months ?? 0,
+      maxAgeMonths: item.max_age_months ?? 0,
+      critical: item.is_critical,
+      active: item.is_active,
+      displayOrder: item.display_order
+    })) as MilestoneItem[],
+    education: (educationResult.data ?? []).map((item) => ({
+      id: item.id,
+      title: item.title,
+      ageRange: item.age_range,
+      duration: item.duration_label ?? "",
+      summary: item.summary,
+      content: item.content ?? "",
+      published: item.is_published,
+      displayOrder: item.display_order
+    })) as EducationMaterial[],
+    activities: (activitiesResult.data ?? []).map((item) => ({
+      id: item.id,
+      title: item.title,
+      ageRange: item.age_range,
+      duration: item.duration_label ?? "",
+      description: item.description ?? "",
+      published: item.is_published,
+      displayOrder: item.display_order
+    })) as DailyActivity[],
+    adminUsers: roleRows.map((roleRow) => {
+      const authUser = authUsers.find((user) => user.id === roleRow.user_id);
+      return {
+        id: roleRow.user_id,
+        email: authUser?.email ?? `${roleRow.user_id}@unknown.local`,
+        fullName: profiles.get(roleRow.user_id) ?? authUser?.user_metadata?.full_name ?? "Admin User",
+        role: roleRow.role,
+        active: true
+      };
+    }) as AdminUser[]
+  } satisfies CatalogState;
+}
+
+function tableForCategory(category: CatalogCategory) {
+  const tables: Record<CatalogCategory, string> = {
+    milestones: "milestones",
+    education: "education_materials",
+    activities: "stimulation_activities",
+    ageRanges: "age_ranges",
+    adminUsers: "app_roles"
+  };
+  return tables[category];
+}
+
+function toDatabaseRecord(category: CatalogCategory, record: CatalogRecord) {
+  if (category === "milestones") {
+    const item = record as MilestoneItem;
+    return {
+      slug: item.slug || item.id,
+      label: item.label,
+      category: item.category,
+      age_range: item.ageRange,
+      is_critical: item.critical,
+      min_age_months: item.minAgeMonths,
+      max_age_months: item.maxAgeMonths,
+      is_active: item.active,
+      display_order: item.displayOrder
+    };
+  }
+
+  if (category === "education") {
+    const item = record as EducationMaterial;
+    return {
+      id: item.id,
+      title: item.title,
+      age_range: item.ageRange,
+      duration_label: item.duration,
+      summary: item.summary,
+      content: item.content,
+      is_published: item.published,
+      display_order: item.displayOrder
+    };
+  }
+
+  if (category === "activities") {
+    const item = record as DailyActivity;
+    return {
+      id: item.id,
+      title: item.title,
+      age_range: item.ageRange,
+      duration_label: item.duration,
+      description: item.description,
+      is_published: item.published,
+      display_order: item.displayOrder
+    };
+  }
+
+  if (category === "ageRanges") {
+    const item = record as AgeRangeRecord;
+    return {
+      label: item.label,
+      min_age_months: item.minAgeMonths,
+      max_age_months: item.maxAgeMonths,
+      is_active: item.active,
+      display_order: item.displayOrder
+    };
+  }
+
+  const item = record as AdminUser;
+  return {
+    user_id: item.id,
+    role: item.role
+  };
+}
+
+function slugify(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }

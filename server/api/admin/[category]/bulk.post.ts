@@ -1,8 +1,10 @@
 import type { CatalogRecord, ImportResult } from "../../../../types/admin";
 import { fail, ok } from "../../../utils/api";
-import { getCatalogState, isCatalogCategory, normalizeRecord, saveCatalogState, validateRecord } from "../../../utils/catalog";
+import { bulkUpsertCatalogRecords, isCatalogCategory, normalizeRecord, validateRecord } from "../../../utils/catalog";
+import { requireAdminSession } from "../../../utils/auth";
 
 export default defineEventHandler(async (event) => {
+  requireAdminSession(event);
   const category = String(getRouterParam(event, "category"));
   if (!isCatalogCategory(category)) {
     return fail(`Unknown category: ${category}`, 404);
@@ -27,11 +29,7 @@ export default defineEventHandler(async (event) => {
   });
 
   if (validRecords.length) {
-    const state = await getCatalogState();
-    const list = state[category] as CatalogRecord[];
-    const incomingIds = new Set(validRecords.map((item) => item.id));
-    state[category] = [...validRecords, ...list.filter((item) => !incomingIds.has(item.id))] as never;
-    await saveCatalogState(state);
+    await bulkUpsertCatalogRecords(category, validRecords);
   }
 
   return ok(result, result.failed ? 207 : 200);
