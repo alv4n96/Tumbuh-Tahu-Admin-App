@@ -197,12 +197,6 @@ h2 {
   word-break: break-word;
 }
 
-.content-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
-  gap: 16px;
-}
-
 .panel {
   min-width: 0;
   padding: 18px;
@@ -437,6 +431,27 @@ tbody tr:hover {
   font-size: 28px;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(23, 33, 27, 0.42);
+}
+
+.modal-panel {
+  width: min(560px, 100%);
+  max-height: min(760px, calc(100vh - 40px));
+  overflow-y: auto;
+  border: 1px solid #d9e2dc;
+  border-radius: 8px;
+  background: #fff;
+  padding: 18px;
+  box-shadow: 0 22px 60px rgba(23, 33, 27, 0.22);
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -458,9 +473,6 @@ tbody tr:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 720px) {

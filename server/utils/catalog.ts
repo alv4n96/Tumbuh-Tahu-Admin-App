@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type {
   AdminUser,
+  AppUser,
   AgeRangeRecord,
   CatalogCategory,
   CatalogRecord,
@@ -111,15 +112,16 @@ export const adminUsers: AdminUser[] = [
   { id: "admin-support", email: "support@tumbuhtahu.test", fullName: "Admin Support", role: "editor", active: true, lastLoginAt: null }
 ];
 
-export const catalogKeys: CatalogCategory[] = ["milestones", "education", "activities", "ageRanges", "adminUsers", "feedback"];
+export const catalogKeys: CatalogCategory[] = ["milestones", "education", "activities", "ageRanges", "adminUsers", "users", "feedback"];
 
 export const templates: Record<CatalogCategory, string[]> = {
-  milestones: ["id", "slug", "label", "category", "ageRange", "minAgeMonths", "maxAgeMonths", "critical", "active", "displayOrder"],
-  education: ["id", "title", "ageRange", "duration", "summary", "content", "published", "displayOrder"],
-  activities: ["id", "title", "ageRange", "duration", "description", "published", "displayOrder"],
-  ageRanges: ["id", "label", "minAgeMonths", "maxAgeMonths", "active", "displayOrder"],
-  adminUsers: ["id", "email", "fullName", "role", "active", "lastLoginAt"],
-  feedback: ["id", "respondentName", "usabilityRating", "clarityRating", "visualRating", "usefulnessRating", "createdAt"]
+  milestones: ["slug", "label", "category", "ageRange", "minAgeMonths", "maxAgeMonths", "critical", "active", "displayOrder"],
+  education: ["title", "ageRange", "duration", "summary", "content", "published", "displayOrder"],
+  activities: ["title", "ageRange", "duration", "description", "published", "displayOrder"],
+  ageRanges: ["label", "minAgeMonths", "maxAgeMonths", "active", "displayOrder"],
+  adminUsers: ["email", "fullName", "role", "active", "lastLoginAt"],
+  users: ["email", "fullName", "createdAt", "lastLoginAt"],
+  feedback: ["respondentName", "usabilityRating", "clarityRating", "visualRating", "usefulnessRating", "createdAt"]
 };
 
 export function seedCatalog(): CatalogState {
@@ -129,6 +131,7 @@ export function seedCatalog(): CatalogState {
     activities: structuredClone(activities),
     ageRanges: structuredClone(ageRanges),
     adminUsers: structuredClone(adminUsers),
+    users: [],
     feedback: []
   };
 }
@@ -225,8 +228,8 @@ export async function bulkUpsertCatalogRecords(category: CatalogCategory, record
   await saveCatalogState(state);
 }
 
-export function normalizeRecord(category: CatalogCategory, input: Record<string, unknown>): CatalogRecord {
-  const id = String(input.id || crypto.randomUUID());
+export function normalizeRecord(category: CatalogCategory, input: Record<string, unknown>, options: { preserveEmptyId?: boolean } = {}): CatalogRecord {
+  const id = String(input.id || (options.preserveEmptyId ? "" : crypto.randomUUID()));
   if (category === "milestones") {
     return {
       id,
@@ -296,6 +299,16 @@ export function normalizeRecord(category: CatalogCategory, input: Record<string,
     };
   }
 
+  if (category === "users") {
+    return {
+      id,
+      email: String(input.email || ""),
+      fullName: input.fullName ? String(input.fullName) : null,
+      createdAt: input.createdAt ? String(input.createdAt) : null,
+      lastLoginAt: input.lastLoginAt ? String(input.lastLoginAt) : null
+    };
+  }
+
   return {
     id,
     email: String(input.email || ""),
@@ -315,7 +328,7 @@ export function validateRecord(category: CatalogCategory, input: CatalogRecord) 
     }
   }
 
-  if (category === "adminUsers" && !String((input as AdminUser).email).includes("@")) {
+  if ((category === "adminUsers" || category === "users") && !String((input as AdminUser | AppUser).email).includes("@")) {
     missing.push("valid email");
   }
 
@@ -475,6 +488,13 @@ async function getSupabaseCatalogState() {
         lastLoginAt: authUser?.last_sign_in_at ?? null
       };
     }) as AdminUser[],
+    users: authUsers.map((user) => ({
+      id: user.id,
+      email: user.email ?? `${user.id}@unknown.local`,
+      fullName: profiles.get(user.id) ?? user.user_metadata?.full_name ?? null,
+      createdAt: user.created_at ?? null,
+      lastLoginAt: user.last_sign_in_at ?? null
+    })) as AppUser[],
     feedback: (feedbackResult.data ?? []).map((item) => ({
       id: item.id,
       ownerId: item.owner_id,
@@ -500,6 +520,7 @@ function tableForCategory(category: CatalogCategory) {
     activities: "stimulation_activities",
     ageRanges: "age_ranges",
     adminUsers: "app_roles",
+    users: "auth.users",
     feedback: "usability_feedback"
   };
   return tables[category];
@@ -508,8 +529,8 @@ function tableForCategory(category: CatalogCategory) {
 function toDatabaseRecord(category: CatalogCategory, record: CatalogRecord) {
   if (category === "milestones") {
     const item = record as MilestoneItem;
-    return {
-      slug: item.slug || item.id,
+    return dropUndefined({
+      slug: item.slug || item.id || undefined,
       label: item.label,
       category: item.category,
       age_range: item.ageRange,
@@ -518,13 +539,13 @@ function toDatabaseRecord(category: CatalogCategory, record: CatalogRecord) {
       max_age_months: item.maxAgeMonths,
       is_active: item.active,
       display_order: item.displayOrder
-    };
+    });
   }
 
   if (category === "education") {
     const item = record as EducationMaterial;
-    return {
-      id: item.id,
+    return dropUndefined({
+      id: item.id || undefined,
       title: item.title,
       age_range: item.ageRange,
       duration_label: item.duration,
@@ -532,20 +553,20 @@ function toDatabaseRecord(category: CatalogCategory, record: CatalogRecord) {
       content: item.content,
       is_published: item.published,
       display_order: item.displayOrder
-    };
+    });
   }
 
   if (category === "activities") {
     const item = record as DailyActivity;
-    return {
-      id: item.id,
+    return dropUndefined({
+      id: item.id || undefined,
       title: item.title,
       age_range: item.ageRange,
       duration_label: item.duration,
       description: item.description,
       is_published: item.published,
       display_order: item.displayOrder
-    };
+    });
   }
 
   if (category === "ageRanges") {
@@ -578,6 +599,17 @@ function toDatabaseRecord(category: CatalogCategory, record: CatalogRecord) {
     };
   }
 
+  if (category === "users") {
+    const item = record as AppUser;
+    return {
+      id: item.id,
+      email: item.email,
+      full_name: item.fullName,
+      created_at: item.createdAt,
+      last_sign_in_at: item.lastLoginAt
+    };
+  }
+
   const item = record as AdminUser;
   return {
     user_id: item.id,
@@ -587,4 +619,8 @@ function toDatabaseRecord(category: CatalogCategory, record: CatalogRecord) {
 
 function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+function dropUndefined<T extends Record<string, unknown>>(input: T) {
+  return Object.fromEntries(Object.entries(input).filter((entry) => entry[1] !== undefined)) as Partial<T>;
 }
