@@ -121,7 +121,20 @@ export const templates: Record<CatalogCategory, string[]> = {
   ageRanges: ["label", "minAgeMonths", "maxAgeMonths", "active", "displayOrder"],
   adminUsers: ["email", "fullName", "role", "active", "lastLoginAt"],
   users: ["email", "fullName", "createdAt", "lastLoginAt"],
-  feedback: ["respondentName", "usabilityRating", "clarityRating", "visualRating", "usefulnessRating", "createdAt"]
+  feedback: [
+    "respondentName",
+    "ownerId",
+    "flowAnswer",
+    "helpfulAnswer",
+    "confusingAnswer",
+    "languageAnswer",
+    "featuresAnswer",
+    "usabilityRating",
+    "clarityRating",
+    "visualRating",
+    "usefulnessRating",
+    "createdAt"
+  ]
 };
 
 export function seedCatalog(): CatalogState {
@@ -321,7 +334,22 @@ export function normalizeRecord(category: CatalogCategory, input: Record<string,
 
 export function validateRecord(category: CatalogCategory, input: CatalogRecord) {
   const missing: string[] = [];
-  const required = templates[category].filter((field) => !["content", "displayOrder", "active", "published", "critical"].includes(field));
+  const optionalFields = [
+    "content",
+    "displayOrder",
+    "active",
+    "published",
+    "critical",
+    "ownerId",
+    "flowAnswer",
+    "helpfulAnswer",
+    "confusingAnswer",
+    "languageAnswer",
+    "featuresAnswer",
+    "createdAt",
+    "lastLoginAt"
+  ];
+  const required = templates[category].filter((field) => !optionalFields.includes(field));
   for (const field of required) {
     if (!String((input as unknown as Record<string, unknown>)[field] ?? "").trim()) {
       missing.push(field);

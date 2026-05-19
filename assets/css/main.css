@@ -320,6 +320,10 @@ tbody tr {
   cursor: pointer;
 }
 
+tbody tr.is-readonly {
+  cursor: default;
+}
+
 tbody tr:hover {
   background: #f7faf8;
 }
@@ -351,6 +355,29 @@ tbody tr:hover {
 .record-form input[type="checkbox"] {
   width: 18px;
   height: 18px;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 1px solid #d7dfd9;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #f8faf7;
+  color: #405047;
+  font-size: 13px;
+}
+
+.record-form .checkbox-field {
+  display: flex;
 }
 
 .primary-button {

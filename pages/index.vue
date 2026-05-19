@@ -82,12 +82,30 @@ const sections: SectionConfig[] = [
     key: "feedback",
     label: "Feedback",
     description: "Masukan pengguna dari aplikasi utama.",
-    fields: ["respondentName", "usabilityRating", "clarityRating", "visualRating", "usefulnessRating", "createdAt"],
+    fields: [
+      "respondentName",
+      "ownerId",
+      "flowAnswer",
+      "helpfulAnswer",
+      "confusingAnswer",
+      "languageAnswer",
+      "featuresAnswer",
+      "usabilityRating",
+      "clarityRating",
+      "visualRating",
+      "usefulnessRating",
+      "createdAt"
+    ],
     icon: MessageSquare
   }
 ];
 
 const pageSize = 10;
+const booleanFields = ["active", "published", "critical"];
+const numberFields = ["minAgeMonths", "maxAgeMonths", "displayOrder", "usabilityRating", "clarityRating", "visualRating", "usefulnessRating"];
+const textAreaFields = ["summary", "content", "description", "flowAnswer", "helpfulAnswer", "confusingAnswer", "languageAnswer", "featuresAnswer"];
+const readonlyCategories: CatalogCategory[] = ["users"];
+const readonlyFields = ["lastLoginAt"];
 const activeCategory = ref<CatalogCategory>("milestones");
 const currentPage = ref(1);
 const search = ref("");
@@ -127,6 +145,10 @@ const activeRows = computed(() => {
   return rows.filter((row) => JSON.stringify(row).toLowerCase().includes(query));
 });
 const visibleFields = computed(() => activeSection.value.fields);
+const tableFields = computed(() => visibleFields.value);
+const standardFormFields = computed(() => visibleFields.value.filter((field) => !booleanFields.includes(field)));
+const booleanFormFields = computed(() => visibleFields.value.filter((field) => booleanFields.includes(field)));
+const isReadOnlyCategory = computed(() => readonlyCategories.includes(activeCategory.value));
 const totalPages = computed(() => Math.max(1, Math.ceil(activeRows.value.length / pageSize)));
 const paginatedRows = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
@@ -219,6 +241,9 @@ function resetForm() {
 }
 
 function openCreateModal() {
+  if (isReadOnlyCategory.value) {
+    return;
+  }
   resetForm();
   isFormModalOpen.value = true;
 }
@@ -255,7 +280,7 @@ function defaultValue(field: string) {
 }
 
 function editRow(row: CatalogRecord) {
-  if (activeCategory.value === "users") {
+  if (isReadOnlyCategory.value) {
     return;
   }
   resetForm();
@@ -274,6 +299,12 @@ function formatCell(value: unknown) {
     return formatDateTime(value);
   }
   return value;
+}
+
+function formatFieldLabel(field: string) {
+  return field
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/^./, (value) => value.toUpperCase());
 }
 
 function formatDateTime(value: string) {
@@ -451,13 +482,13 @@ async function logout() {
               <p>{{ activeSection.description }}</p>
             </div>
             <div class="toolbar">
-              <button v-if="activeCategory !== 'users'" class="icon-button" type="button" title="Tambah record" @click="openCreateModal">
+              <button v-if="!isReadOnlyCategory" class="icon-button" type="button" title="Tambah record" @click="openCreateModal">
                 <Plus :size="18" />
               </button>
               <button class="icon-button" type="button" title="Download template" @click="downloadTemplate">
                 <Download :size="18" />
               </button>
-              <label class="icon-button" title="Bulk import">
+              <label v-if="!isReadOnlyCategory" class="icon-button" title="Bulk import">
                 <Upload :size="18" />
                 <input class="sr-only" type="file" accept=".csv" @change="handleImport" />
               </label>
@@ -469,7 +500,7 @@ async function logout() {
               <span>Filter Kolom</span>
               <select v-model="filterField">
                 <option value="">Semua kolom</option>
-                <option v-for="field in visibleFields" :key="field" :value="field">{{ field }}</option>
+                <option v-for="field in visibleFields" :key="field" :value="field">{{ formatFieldLabel(field) }}</option>
               </select>
             </label>
             <label>
@@ -491,16 +522,16 @@ async function logout() {
             <table>
               <thead>
                 <tr>
-                  <th v-for="field in visibleFields.slice(0, 6)" :key="field">{{ field }}</th>
-                  <th aria-label="Actions"></th>
+                  <th v-for="field in tableFields" :key="field">{{ formatFieldLabel(field) }}</th>
+                  <th v-if="!isReadOnlyCategory" aria-label="Actions"></th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in paginatedRows" :key="row.id" @click="editRow(row)">
-                  <td v-for="field in visibleFields.slice(0, 6)" :key="field">
+                <tr v-for="row in paginatedRows" :key="row.id" :class="{ 'is-readonly': isReadOnlyCategory }" @click="editRow(row)">
+                  <td v-for="field in tableFields" :key="field">
                     {{ formatCell((row as Record<string, unknown>)[field]) }}
                   </td>
-                  <td>
+                  <td v-if="!isReadOnlyCategory">
                     <button class="danger-button" type="button" title="Delete" @click.stop="deleteRow(row)">
                       <Trash2 :size="16" />
                     </button>
@@ -535,8 +566,8 @@ async function logout() {
         </div>
 
         <form class="record-form" @submit.prevent="saveRow">
-            <label v-for="field in visibleFields" :key="field">
-              <span>{{ field }}</span>
+            <label v-for="field in standardFormFields" :key="field">
+              <span>{{ formatFieldLabel(field) }}</span>
               <select v-if="field === 'category'" v-model="form[field]">
                 <option>Motorik Kasar</option>
                 <option>Motorik Halus</option>
@@ -551,12 +582,18 @@ async function logout() {
                 <option>admin</option>
                 <option>editor</option>
               </select>
-              <input v-else-if="field === 'lastLoginAt'" v-model="form[field]" type="text" disabled />
-              <input v-else-if="['active', 'published', 'critical'].includes(field)" v-model="form[field]" type="checkbox" />
-              <input v-else-if="['minAgeMonths', 'maxAgeMonths', 'displayOrder', 'usabilityRating', 'clarityRating', 'visualRating', 'usefulnessRating'].includes(field)" v-model.number="form[field]" type="number" />
-              <textarea v-else-if="['summary', 'content', 'description'].includes(field)" v-model="form[field]" rows="3" />
+              <input v-else-if="readonlyFields.includes(field)" v-model="form[field]" type="text" disabled />
+              <input v-else-if="numberFields.includes(field)" v-model.number="form[field]" type="number" />
+              <textarea v-else-if="textAreaFields.includes(field)" v-model="form[field]" rows="3" />
               <input v-else v-model="form[field]" type="text" />
             </label>
+
+            <div v-if="booleanFormFields.length" class="checkbox-grid" aria-label="Status controls">
+              <label v-for="field in booleanFormFields" :key="field" class="checkbox-field">
+                <input v-model="form[field]" type="checkbox" />
+                <span>{{ formatFieldLabel(field) }}</span>
+              </label>
+            </div>
 
             <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
             <div v-if="importResult" class="import-result">
