@@ -168,6 +168,10 @@ export async function upsertCatalogRecord(category: CatalogCategory, record: Cat
     return;
   }
 
+  if (requireDatabaseInThisEnvironment()) {
+    assertDatabaseConfigured();
+  }
+
   const state = await getCatalogState();
   const list = state[category] as CatalogRecord[];
   state[category] = [record, ...list.filter((item) => item.id !== record.id)] as never;
@@ -183,6 +187,10 @@ export async function deleteCatalogRecord(category: CatalogCategory, id: string)
       throw createError({ statusCode: 500, statusMessage: error.message });
     }
     return;
+  }
+
+  if (requireDatabaseInThisEnvironment()) {
+    assertDatabaseConfigured();
   }
 
   const state = await getCatalogState();
@@ -201,6 +209,10 @@ export async function bulkUpsertCatalogRecords(category: CatalogCategory, record
       throw createError({ statusCode: 500, statusMessage: error.message });
     }
     return;
+  }
+
+  if (requireDatabaseInThisEnvironment()) {
+    assertDatabaseConfigured();
   }
 
   const state = await getCatalogState();
@@ -296,7 +308,7 @@ function parseBoolean(value: unknown) {
   return value === true || String(value).toLowerCase() === "true" || String(value) === "1" || String(value).toLowerCase() === "yes";
 }
 
-function getSupabaseAdmin() {
+export function getSupabaseAdmin() {
   const config = useRuntimeConfig();
   const url = String(config.public.supabaseUrl || process.env.NUXT_PUBLIC_SUPABASE_URL || "");
   const serviceRoleKey = String(config.supabaseServiceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY || "");
@@ -312,9 +324,41 @@ function getSupabaseAdmin() {
   });
 }
 
+export function getSupabasePublicClient() {
+  const config = useRuntimeConfig();
+  const url = String(config.public.supabaseUrl || process.env.NUXT_PUBLIC_SUPABASE_URL || "");
+  const anonKey = String(config.public.supabaseKey || process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || "");
+  if (!url || !anonKey) {
+    return null;
+  }
+
+  return createClient(url, anonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+}
+
+export function requireDatabaseInThisEnvironment() {
+  return process.env.NODE_ENV === "production";
+}
+
+export function assertDatabaseConfigured() {
+  if (!getSupabaseAdmin()) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: "Supabase database env is required in production. Set NUXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
+    });
+  }
+}
+
 async function getSupabaseCatalogState() {
   const supabase = getSupabaseAdmin();
   if (!supabase) {
+    if (requireDatabaseInThisEnvironment()) {
+      assertDatabaseConfigured();
+    }
     return null;
   }
 
