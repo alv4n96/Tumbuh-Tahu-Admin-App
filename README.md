@@ -72,8 +72,9 @@ The dashboard exposes CRUD controls for:
 - `activities`
 - `ageRanges`
 - `adminUsers`
+- `feedback`
 
-Each category supports CSV template download and bulk insert from the UI. Templates are category-specific and available from the toolbar on each table.
+The dashboard also exposes a read-only `users` page for app user email, profile name, created date, and last login visibility. Editable categories support CSV template download and bulk insert from the UI. Templates are category-specific and available from the toolbar on each table.
 
 When `NUXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are configured, the admin API reads and writes the real Supabase tables:
 
@@ -83,6 +84,7 @@ When `NUXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are configured, 
 - `public.age_ranges`
 - `public.app_roles`
 - `public.user_profiles`
+- `public.usability_feedback`
 - `auth.users` for admin email lookup
 
 Without those variables, the app falls back to in-memory seed data for local UI preview only. In production/Vercel, missing Supabase variables fail the API instead of returning seed data, so production cannot accidentally show mock data.
