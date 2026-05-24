@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LogOut, Search } from "lucide-vue-next";
+import { LogOut } from "lucide-vue-next";
 import type { CatalogCategory } from "~/types/admin";
 import { booleanFields } from "~/utils/catalogConfig";
 
@@ -27,15 +27,9 @@ async function logout() {
           <p class="eyebrow">Business Analytics App</p>
           <h1>{{ vm.activeSection.value.label }}</h1>
         </div>
-        <div class="topbar-actions">
-          <div class="search-box">
-            <Search :size="18" />
-            <input v-model="vm.search.value" type="search" placeholder="Search catalog data" />
-          </div>
-          <button class="icon-button" type="button" title="Logout" @click="logout">
-            <LogOut :size="18" />
-          </button>
-        </div>
+        <button class="icon-button" type="button" title="Logout" @click="logout">
+          <LogOut :size="18" />
+        </button>
       </header>
 
       <CatalogMetrics

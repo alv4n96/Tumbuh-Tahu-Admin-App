@@ -204,6 +204,39 @@ h2 {
   padding: 18px;
 }
 
+.metric-accent {
+  position: relative;
+  overflow: hidden;
+  border-top: 4px solid var(--metric-color, #1f7a4d);
+}
+
+.metric-accent::after {
+  position: absolute;
+  right: -24px;
+  bottom: -32px;
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--metric-color, #1f7a4d) 16%, transparent);
+  content: "";
+}
+
+.metric-green {
+  --metric-color: #1f7a4d;
+}
+
+.metric-blue {
+  --metric-color: #2f80ed;
+}
+
+.metric-orange {
+  --metric-color: #f79009;
+}
+
+.metric-purple {
+  --metric-color: #7a5af8;
+}
+
 .metric strong {
   margin-top: 10px;
   font-size: 30px;
@@ -484,6 +517,10 @@ tbody tr:hover {
   padding-bottom: 16px;
 }
 
+.dashboard-health-bar {
+  margin-bottom: 14px;
+}
+
 .dashboard-link {
   display: inline-flex;
   align-items: center;
@@ -680,6 +717,7 @@ tbody tr:hover {
   gap: 10px;
   align-items: center;
   border: 1px solid #edf1ee;
+  border-left: 4px solid var(--item-color, #1f7a4d);
   border-radius: 8px;
   padding: 12px;
   background: #f8faf7;
@@ -724,7 +762,85 @@ tbody tr:hover {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #1f7a4d;
+  background: var(--chart-color, #1f7a4d);
+}
+
+.chart-panel {
+  min-height: 100%;
+}
+
+.compact-chart-row {
+  grid-template-columns: 86px 1fr 42px;
+}
+
+.donut-layout {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.donut-chart {
+  display: grid;
+  width: 140px;
+  height: 140px;
+  place-items: center;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at center, #fff 0 56%, transparent 57%),
+    conic-gradient(#1f7a4d var(--donut-value, 0%), #f79009 var(--donut-value, 0%) 100%);
+  box-shadow: inset 0 0 0 1px #edf1ee;
+  color: #17211b;
+}
+
+.donut-chart strong {
+  align-self: end;
+  font-size: 32px;
+}
+
+.donut-chart span {
+  align-self: start;
+  color: #65746a;
+  font-size: 13px;
+}
+
+.age-chart {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  min-height: 220px;
+  gap: 12px;
+  align-items: end;
+}
+
+.age-bar {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 210px;
+  gap: 8px;
+  color: #405047;
+  font-size: 12px;
+  text-align: center;
+}
+
+.age-track {
+  display: flex;
+  min-height: 150px;
+  align-items: end;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #eef3ef;
+}
+
+.age-track span {
+  display: block;
+  width: 100%;
+  min-height: 8px;
+  border-radius: 8px 8px 0 0;
+  background: var(--chart-color, #1f7a4d);
+}
+
+.age-bar strong {
+  font-size: 18px;
 }
 
 .analysis-layout {

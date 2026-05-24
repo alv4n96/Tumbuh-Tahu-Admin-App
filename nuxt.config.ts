@@ -1,6 +1,11 @@
 export default defineNuxtConfig({
   compatibilityDate: "2026-05-19",
   devtools: { enabled: true },
+  app: {
+    head: {
+      link: [{ rel: "icon", type: "image/svg+xml", href: "/icon.svg" }]
+    }
+  },
   css: ["~/assets/css/main.css"],
   runtimeConfig: {
     adminSeedPassword: process.env.ADMIN_SEED_PASSWORD || "TumbuhTahuAdmin#2026",

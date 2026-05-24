@@ -26,7 +26,7 @@ defineProps<{
     <article class="metric">
       <span>Terfilter</span>
       <strong>{{ filteredRows }}</strong>
-      <small>Hasil search dan filter kolom</small>
+      <small>Hasil filter kolom</small>
     </article>
     <article class="metric">
       <span>Halaman</span>
