@@ -179,7 +179,7 @@ h2 {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -201,6 +201,13 @@ h2 {
   word-break: break-word;
 }
 
+.metric small {
+  display: block;
+  margin-top: 6px;
+  color: #65746a;
+  line-height: 18px;
+}
+
 .panel {
   min-width: 0;
   padding: 18px;
@@ -214,39 +221,6 @@ h2 {
 
 .toolbar {
   gap: 8px;
-}
-
-.grid-controls {
-  display: grid;
-  grid-template-columns: minmax(170px, 220px) minmax(220px, 1fr) minmax(130px, 160px) minmax(150px, 180px);
-  gap: 12px;
-  margin-bottom: 14px;
-  padding: 12px;
-  border: 1px solid #edf1ee;
-  border-radius: 8px;
-  background: #f8faf7;
-}
-
-.grid-controls label {
-  display: grid;
-  gap: 6px;
-  color: #65746a;
-  font-size: 13px;
-}
-
-.grid-controls input,
-.grid-controls select {
-  min-height: 38px;
-  border: 1px solid #d7dfd9;
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: #fff;
-  color: #17211b;
-}
-
-.grid-controls .pager-button {
-  width: 100%;
-  min-height: 38px;
 }
 
 .icon-button,
@@ -320,28 +294,10 @@ td {
 }
 
 th {
+  position: relative;
   color: #65746a;
   font-size: 12px;
   text-transform: uppercase;
-}
-
-.table-filter-row th {
-  background: #f8faf7;
-  padding: 8px 10px;
-}
-
-.table-filter-row input,
-.table-filter-row select {
-  width: 100%;
-  min-width: 110px;
-  height: 34px;
-  border: 1px solid #d7dfd9;
-  border-radius: 8px;
-  padding: 6px 8px;
-  background: #fff;
-  color: #17211b;
-  font-size: 12px;
-  text-transform: none;
 }
 
 tbody tr {
@@ -507,6 +463,144 @@ tbody tr:hover {
   box-shadow: 0 22px 60px rgba(23, 33, 27, 0.22);
 }
 
+.dashboard-strip {
+  margin-bottom: 16px;
+}
+
+.dashboard-panel {
+  padding-bottom: 16px;
+}
+
+.dashboard-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+}
+
+.health-row,
+.table-control-row,
+.th-control,
+.dashboard-pills {
+  display: flex;
+  align-items: center;
+}
+
+.health-row {
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: #405047;
+}
+
+.health-row strong {
+  font-size: 22px;
+}
+
+.health-bar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8eee9;
+}
+
+.health-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #1f7a4d;
+}
+
+.dashboard-pills {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dashboard-pills span {
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #edf3ee;
+  color: #405047;
+  font-size: 13px;
+}
+
+.table-control-row {
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+  color: #65746a;
+  font-size: 13px;
+}
+
+.table-control-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-control-row select {
+  min-height: 34px;
+  border: 1px solid #d7dfd9;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fff;
+  color: #17211b;
+}
+
+.th-control {
+  position: relative;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.filter-button {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #65746a;
+  cursor: pointer;
+}
+
+.filter-button.active,
+.filter-button:hover {
+  border-color: #c9d9cf;
+  background: #edf3ee;
+  color: #165c38;
+}
+
+.filter-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 5;
+  display: grid;
+  gap: 8px;
+  width: 220px;
+  border: 1px solid #cbd8d0;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(23, 33, 27, 0.16);
+}
+
+.filter-popover input,
+.filter-popover select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #d7dfd9;
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: #fff;
+  color: #17211b;
+  font-size: 13px;
+}
+
 .analysis-layout {
   display: grid;
   gap: 16px;
@@ -606,7 +700,6 @@ tbody tr:hover {
 
   .metric-grid,
   .nav-list,
-  .grid-controls,
   .analysis-grid {
     grid-template-columns: 1fr;
   }

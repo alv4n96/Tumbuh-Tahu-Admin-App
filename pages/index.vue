@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ClipboardCopy,
   Download,
+  Filter,
   LayoutDashboard,
   Loader2,
   LogOut,
@@ -106,8 +107,7 @@ const activeCategory = ref<CatalogCategory>("milestones");
 const pageSize = ref(10);
 const currentPage = ref(1);
 const search = ref("");
-const filterField = ref("");
-const filterValue = ref("");
+const openFilterField = ref("");
 const loading = ref(true);
 const saving = ref(false);
 const isFormModalOpen = ref(false);
@@ -127,15 +127,10 @@ const form = reactive<Record<string, any>>({});
 const columnFilters = reactive<Record<string, string>>({});
 
 const activeSection = computed(() => sections.find((section) => section.key === activeCategory.value) || sections[0]);
+const rawActiveRows = computed(() => catalog[activeCategory.value] as CatalogRecord[]);
 const activeRows = computed(() => {
   const query = search.value.toLowerCase().trim();
-  const field = filterField.value;
-  const value = filterValue.value.toLowerCase().trim();
-  let rows = catalog[activeCategory.value] as CatalogRecord[];
-
-  if (field && value) {
-    rows = rows.filter((row) => String((row as Record<string, unknown>)[field] ?? "").toLowerCase().includes(value));
-  }
+  let rows = rawActiveRows.value;
 
   for (const column of visibleFields.value) {
     const columnValue = String(columnFilters[column] ?? "").toLowerCase().trim();
@@ -155,6 +150,7 @@ const tableFields = computed(() => visibleFields.value);
 const standardFormFields = computed(() => visibleFields.value.filter((field) => !booleanFields.includes(field)));
 const booleanFormFields = computed(() => visibleFields.value.filter((field) => booleanFields.includes(field)));
 const isReadOnlyCategory = computed(() => readonlyCategories.includes(activeCategory.value));
+const canDeleteRows = computed(() => !isReadOnlyCategory.value || activeCategory.value === "feedback");
 const totalPages = computed(() => Math.max(1, Math.ceil(activeRows.value.length / pageSize.value)));
 const paginatedRows = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value;
@@ -200,18 +196,51 @@ const adminSummary = computed(() => {
   const active = catalog.adminUsers.filter((user: AdminUser) => user.active).length;
   return `${active}/${catalog.adminUsers.length} aktif`;
 });
+const dashboardCards = computed(() => [
+  {
+    label: "Konten Aktif",
+    value: `${catalog.milestones.filter((item) => item.active).length + catalog.education.filter((item) => item.published).length + catalog.activities.filter((item) => item.published).length}`,
+    detail: "Milestone, materi, dan stimulasi"
+  },
+  {
+    label: "Feedback Masuk",
+    value: String(catalog.feedback.length),
+    detail: `${catalog.feedbackQuestions.filter((item) => item.active).length} pertanyaan aktif`
+  },
+  {
+    label: "User Aplikasi",
+    value: String(catalog.users.length),
+    detail: `${catalog.users.filter((item) => Boolean(item.lastLoginAt)).length} pernah login`
+  },
+  {
+    label: "Data Terfilter",
+    value: `${activeRows.value.length}/${rawActiveRows.value.length}`,
+    detail: activeSection.value.label
+  }
+]);
+const contentHealth = computed(() => {
+  const total = catalog.milestones.length + catalog.education.length + catalog.activities.length + catalog.feedbackQuestions.length;
+  const active =
+    catalog.milestones.filter((item) => item.active).length +
+    catalog.education.filter((item) => item.published).length +
+    catalog.activities.filter((item) => item.published).length +
+    catalog.feedbackQuestions.filter((item) => item.active).length;
+  return total ? Math.round((active / total) * 100) : 0;
+});
 
 onMounted(loadCatalog);
 watch(activeCategory, () => {
   currentPage.value = 1;
-  filterField.value = "";
-  filterValue.value = "";
   clearColumnFilters();
+  openFilterField.value = "";
   importResult.value = null;
   errorMessage.value = "";
   resetForm();
 });
-watch([search, filterField, filterValue, pageSize], () => {
+watch([search, pageSize], () => {
+  currentPage.value = 1;
+});
+watch(columnFilters, () => {
   currentPage.value = 1;
 });
 watch(totalPages, () => {
@@ -325,6 +354,7 @@ function clearColumnFilters() {
   for (const key of Object.keys(columnFilters)) {
     delete columnFilters[key];
   }
+  openFilterField.value = "";
 }
 
 function averageFeedbackRating(row: Record<string, unknown>) {
@@ -332,6 +362,15 @@ function averageFeedbackRating(row: Record<string, unknown>) {
     .map((field) => Number(row[field] || 0))
     .filter((value) => value > 0);
   return values.length ? values.reduce((total, value) => total + value, 0) / values.length : 0;
+}
+
+function toggleFilter(field: string) {
+  openFilterField.value = openFilterField.value === field ? "" : field;
+}
+
+function clearSingleColumnFilter(field: string) {
+  delete columnFilters[field];
+  openFilterField.value = "";
 }
 
 function previousPage() {
@@ -516,17 +555,34 @@ async function logout() {
       </header>
 
       <section class="metric-grid" aria-label="Admin metrics">
-        <article class="metric">
-          <span>Total {{ activeSection.label }}</span>
-          <strong>{{ activeRows.length }}</strong>
+        <article v-for="card in dashboardCards" :key="card.label" class="metric">
+          <span>{{ card.label }}</span>
+          <strong>{{ card.value }}</strong>
+          <small>{{ card.detail }}</small>
         </article>
-        <article class="metric">
-          <span>{{ sectionSecondaryLabel }}</span>
-          <strong>{{ sectionActiveCount }}</strong>
-        </article>
-        <article class="metric">
-          <span>{{ activeCategory === "adminUsers" || activeCategory === "users" ? "Last Login" : "Halaman" }}</span>
-          <strong>{{ activeCategory === "adminUsers" || activeCategory === "users" ? latestAdminLogin : `${currentPage}/${totalPages}` }}</strong>
+      </section>
+
+      <section class="dashboard-strip" aria-label="Admin dashboard">
+        <article class="panel dashboard-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Dashboard Admin</h2>
+              <p>Ringkasan kondisi konten dan data operasional.</p>
+            </div>
+            <NuxtLink class="pager-button nav-link dashboard-link" to="/olah-data">Olah Data</NuxtLink>
+          </div>
+          <div class="health-row">
+            <span>Konten siap tampil</span>
+            <strong>{{ contentHealth }}%</strong>
+          </div>
+          <div class="health-bar" aria-hidden="true">
+            <span :style="{ width: `${contentHealth}%` }"></span>
+          </div>
+          <div class="dashboard-pills">
+            <span>{{ catalog.ageRanges.filter((item) => item.active).length }} rentang usia aktif</span>
+            <span>{{ catalog.education.filter((item) => item.published).length }} materi publish</span>
+            <span>{{ catalog.activities.filter((item) => item.published).length }} stimulasi publish</span>
+          </div>
         </article>
       </section>
 
@@ -557,28 +613,15 @@ async function logout() {
             </div>
           </div>
 
-          <div class="grid-controls">
+          <div class="table-control-row">
+            <span>{{ sectionSecondaryLabel }}: {{ sectionActiveCount }}</span>
             <label>
-              <span>Filter Kolom</span>
-              <select v-model="filterField">
-                <option value="">Semua kolom</option>
-                <option v-for="field in visibleFields" :key="field" :value="field">{{ formatFieldLabel(field) }}</option>
-              </select>
-            </label>
-            <label>
-              <span>Nilai Filter</span>
-              <input v-model="filterValue" type="text" :disabled="!filterField" placeholder="Ketik nilai filter" />
-            </label>
-            <label>
-              <span>Per Halaman</span>
+              <span>Per halaman</span>
               <select v-model.number="pageSize">
                 <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}</option>
               </select>
             </label>
-            <label>
-              <span>Filter List</span>
-              <button class="pager-button" type="button" @click="clearColumnFilters">Clear filter kolom</button>
-            </label>
+            <button class="pager-button" type="button" @click="clearColumnFilters">Clear filter</button>
           </div>
 
           <div v-if="loading" class="state">
@@ -594,19 +637,30 @@ async function logout() {
             <table>
               <thead>
                 <tr>
-                  <th v-for="field in tableFields" :key="field">{{ formatFieldLabel(field) }}</th>
-                  <th v-if="!isReadOnlyCategory" aria-label="Actions"></th>
-                </tr>
-                <tr class="table-filter-row">
-                  <th v-for="field in tableFields" :key="`filter-${field}`">
-                    <select v-if="booleanFields.includes(field)" v-model="columnFilters[field]" :aria-label="`Filter ${formatFieldLabel(field)}`">
-                      <option value="">Semua</option>
-                      <option value="true">Ya</option>
-                      <option value="false">Tidak</option>
-                    </select>
-                    <input v-else v-model="columnFilters[field]" type="text" :aria-label="`Filter ${formatFieldLabel(field)}`" placeholder="Filter" />
+                  <th v-for="field in tableFields" :key="field">
+                    <div class="th-control">
+                      <span>{{ formatFieldLabel(field) }}</span>
+                      <button
+                        class="filter-button"
+                        :class="{ active: Boolean(columnFilters[field]) || openFilterField === field }"
+                        type="button"
+                        :title="`Filter ${formatFieldLabel(field)}`"
+                        @click.stop="toggleFilter(field)"
+                      >
+                        <Filter :size="14" />
+                      </button>
+                      <div v-if="openFilterField === field" class="filter-popover">
+                        <select v-if="booleanFields.includes(field)" v-model="columnFilters[field]" :aria-label="`Filter ${formatFieldLabel(field)}`">
+                          <option value="">Semua</option>
+                          <option value="true">Ya</option>
+                          <option value="false">Tidak</option>
+                        </select>
+                        <input v-else v-model="columnFilters[field]" type="text" :aria-label="`Filter ${formatFieldLabel(field)}`" placeholder="Ketik filter" />
+                        <button class="pager-button" type="button" @click="clearSingleColumnFilter(field)">Clear</button>
+                      </div>
+                    </div>
                   </th>
-                  <th v-if="!isReadOnlyCategory" aria-label="Actions filter"></th>
+                  <th v-if="canDeleteRows" aria-label="Actions"></th>
                 </tr>
               </thead>
               <tbody>
@@ -614,7 +668,7 @@ async function logout() {
                   <td v-for="field in tableFields" :key="field">
                     {{ formatCell((row as Record<string, unknown>)[field]) }}
                   </td>
-                  <td v-if="!isReadOnlyCategory">
+                  <td v-if="canDeleteRows">
                     <button class="danger-button" type="button" title="Delete" @click.stop="deleteRow(row)">
                       <Trash2 :size="16" />
                     </button>
