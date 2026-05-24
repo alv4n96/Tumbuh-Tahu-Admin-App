@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ClipboardCopy, Download, Filter, Loader2, Plus, Trash2, Upload } from "lucide-vue-next";
+import { ClipboardCopy, Download, Filter, Loader2, Plus, Trash2, Upload, X } from "lucide-vue-next";
 import type { CatalogRecord } from "~/types/admin";
 import { booleanFields, pageSizeOptions } from "~/utils/catalogConfig";
 
@@ -53,6 +53,9 @@ function formatFieldLabel(field: string) {
 }
 
 const activeFilterLabel = computed(() => (props.openFilterField ? formatFieldLabel(props.openFilterField) : ""));
+const activeColumnFilters = computed(() =>
+  Object.entries(props.columnFilters).filter(([, value]) => String(value ?? "").trim().length > 0)
+);
 </script>
 
 <template>
@@ -91,16 +94,28 @@ const activeFilterLabel = computed(() => (props.openFilterField ? formatFieldLab
             <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}</option>
           </select>
         </label>
-        <button class="pager-button" type="button" @click="emit('clearColumnFilters')">Clear filter</button>
+        <button class="pager-button" type="button" :disabled="!activeColumnFilters.length" @click="emit('clearColumnFilters')">Clear filter</button>
+      </div>
+
+      <div v-if="activeColumnFilters.length" class="filter-chips" aria-label="Filter aktif">
+        <span>Filter aktif</span>
+        <button
+          v-for="[field, value] in activeColumnFilters"
+          :key="field"
+          class="filter-chip"
+          type="button"
+          :title="`Hapus filter ${formatFieldLabel(field)}`"
+          @click="emit('clearSingleColumnFilter', field)"
+        >
+          <strong>{{ formatFieldLabel(field) }}</strong>
+          <span>{{ value || "Semua" }}</span>
+          <X :size="14" />
+        </button>
       </div>
 
       <div v-if="loading" class="state">
         <Loader2 class="spin" :size="22" />
         <span>Loading data</span>
-      </div>
-
-      <div v-else-if="!activeRows.length" class="state">
-        <span>No data found</span>
       </div>
 
       <div v-else class="table-wrap">
@@ -118,7 +133,11 @@ const activeFilterLabel = computed(() => (props.openFilterField ? formatFieldLab
           <button class="pager-button" type="button" @click="emit('clearSingleColumnFilter', openFilterField)">Clear</button>
         </div>
 
-        <table>
+        <div v-if="!activeRows.length" class="state empty-table-state">
+          <span>No data found</span>
+        </div>
+
+        <table v-else>
           <thead>
             <tr>
               <th v-for="field in visibleFields" :key="field">

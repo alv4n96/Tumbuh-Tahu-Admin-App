@@ -540,6 +540,7 @@ tbody tr:hover {
 
 .table-control-row {
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 12px;
   color: #65746a;
@@ -559,6 +560,41 @@ tbody tr:hover {
   padding: 6px 8px;
   background: #fff;
   color: #17211b;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: -2px 0 12px;
+  color: #65746a;
+  font-size: 13px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  max-width: min(100%, 360px);
+  min-height: 32px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #c9d9cf;
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: #edf3ee;
+  color: #244b35;
+  cursor: pointer;
+}
+
+.filter-chip strong,
+.filter-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-chip strong {
+  flex: 0 0 auto;
 }
 
 .th-control {
@@ -595,12 +631,20 @@ tbody tr:hover {
   grid-template-columns: minmax(180px, 1fr) minmax(220px, 320px) auto;
   align-items: center;
   gap: 10px;
+  width: min(760px, 100%);
   margin-bottom: 12px;
   border: 1px solid #cbd8d0;
   border-radius: 8px;
   padding: 12px;
   background: #f8faf7;
   box-shadow: 0 10px 24px rgba(23, 33, 27, 0.08);
+}
+
+.empty-table-state {
+  border: 1px dashed #d7dfd9;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fbfdfb;
 }
 
 .filter-panel strong,

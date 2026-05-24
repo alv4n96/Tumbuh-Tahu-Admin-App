@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   LayoutDashboard,
   MessageSquare,
-  Settings,
   TableProperties,
   Users
 } from "lucide-vue-next";
@@ -64,14 +63,6 @@ export const catalogSections: Required<Pick<AdminNavItem, "key" | "path" | "labe
     description: "Label, urutan, dan status pertanyaan rating di aplikasi.",
     fields: ["slug", "label", "active", "displayOrder"],
     icon: MessageSquare
-  },
-  {
-    key: "adminUsers",
-    path: "/admin-users",
-    label: "Admin Users",
-    description: "Akses admin, role, dan status login terakhir.",
-    fields: ["email", "fullName", "role", "active", "lastLoginAt"],
-    icon: Settings
   },
   {
     key: "users",
