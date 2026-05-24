@@ -47,7 +47,7 @@ const sections: SectionConfig[] = [
     key: "education",
     label: "Materi Edukasi",
     description: "Konten baca yang muncul di aplikasi user.",
-    fields: ["title", "ageRange", "duration", "summary", "content", "published", "displayOrder"],
+    fields: ["title", "ageRange", "duration", "summary", "content", "youtubeUrl", "published", "displayOrder"],
     icon: BookOpen
   },
   {
@@ -63,6 +63,13 @@ const sections: SectionConfig[] = [
     description: "Master data segmentasi usia.",
     fields: ["label", "minAgeMonths", "maxAgeMonths", "active", "displayOrder"],
     icon: LayoutDashboard
+  },
+  {
+    key: "feedbackQuestions",
+    label: "Pertanyaan Feedback",
+    description: "Label, urutan, dan status pertanyaan rating di aplikasi.",
+    fields: ["slug", "label", "active", "displayOrder"],
+    icon: MessageSquare
   },
   {
     key: "adminUsers",
@@ -82,29 +89,16 @@ const sections: SectionConfig[] = [
     key: "feedback",
     label: "Feedback",
     description: "Masukan pengguna dari aplikasi utama.",
-    fields: [
-      "respondentName",
-      "ownerId",
-      "flowAnswer",
-      "helpfulAnswer",
-      "confusingAnswer",
-      "languageAnswer",
-      "featuresAnswer",
-      "usabilityRating",
-      "clarityRating",
-      "visualRating",
-      "usefulnessRating",
-      "createdAt"
-    ],
+    fields: ["respondentName", "ownerId", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "createdAt"],
     icon: MessageSquare
   }
 ];
 
 const pageSize = 10;
 const booleanFields = ["active", "published", "critical"];
-const numberFields = ["minAgeMonths", "maxAgeMonths", "displayOrder", "usabilityRating", "clarityRating", "visualRating", "usefulnessRating"];
-const textAreaFields = ["summary", "content", "description", "flowAnswer", "helpfulAnswer", "confusingAnswer", "languageAnswer", "featuresAnswer"];
-const readonlyCategories: CatalogCategory[] = ["users"];
+const numberFields = ["minAgeMonths", "maxAgeMonths", "displayOrder", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"];
+const textAreaFields = ["summary", "content", "description"];
+const readonlyCategories: CatalogCategory[] = ["users", "feedback"];
 const readonlyFields = ["lastLoginAt"];
 const activeCategory = ref<CatalogCategory>("milestones");
 const currentPage = ref(1);
@@ -121,6 +115,7 @@ const catalog = reactive<CatalogState>({
   education: [],
   activities: [],
   ageRanges: [],
+  feedbackQuestions: [],
   adminUsers: [],
   users: [],
   feedback: []
@@ -164,7 +159,7 @@ const sectionActiveCount = computed(() => {
     return catalog.activities.filter((item) => item.published).length;
   }
   if (activeCategory.value === "feedback") {
-    return catalog.feedback.filter((item) => item.usabilityRating >= 4).length;
+    return catalog.feedback.filter((item) => averageFeedbackRating(item as Record<string, unknown>) >= 4).length;
   }
   if (activeCategory.value === "users") {
     return catalog.users.filter((item) => Boolean(item.lastLoginAt)).length;
@@ -270,7 +265,7 @@ function defaultValue(field: string) {
   if (field === "role") {
     return "admin";
   }
-  if (["usabilityRating", "clarityRating", "visualRating", "usefulnessRating"].includes(field)) {
+  if (/^q([1-9]|10)$/.test(field)) {
     return 0;
   }
   if (field === "createdAt") {
@@ -312,6 +307,13 @@ function formatDateTime(value: string) {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function averageFeedbackRating(row: Record<string, unknown>) {
+  const values = ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"]
+    .map((field) => Number(row[field] || 0))
+    .filter((value) => value > 0);
+  return values.length ? values.reduce((total, value) => total + value, 0) / values.length : 0;
 }
 
 function previousPage() {

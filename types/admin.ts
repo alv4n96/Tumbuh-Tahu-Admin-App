@@ -12,7 +12,7 @@ export type ChecklistCategory = "Motorik Kasar" | "Motorik Halus" | "Bahasa" | "
 
 export type AdminRole = "owner" | "admin" | "editor";
 
-export type CatalogCategory = "milestones" | "education" | "activities" | "ageRanges" | "adminUsers" | "users" | "feedback";
+export type CatalogCategory = "milestones" | "education" | "activities" | "ageRanges" | "feedbackQuestions" | "adminUsers" | "users" | "feedback";
 
 export type MilestoneItem = {
   id: string;
@@ -34,6 +34,7 @@ export type EducationMaterial = {
   duration: string;
   summary: string;
   content: string;
+  youtubeUrl?: string | null;
   published: boolean;
   displayOrder: number;
 };
@@ -78,25 +79,35 @@ export type FeedbackRecord = {
   id: string;
   respondentName: string;
   ownerId?: string | null;
-  flowAnswer?: string | null;
-  helpfulAnswer?: string | null;
-  confusingAnswer?: string | null;
-  languageAnswer?: string | null;
-  featuresAnswer?: string | null;
-  usabilityRating: number;
-  clarityRating: number;
-  visualRating: number;
-  usefulnessRating: number;
+  q1: number;
+  q2: number;
+  q3: number;
+  q4: number;
+  q5: number;
+  q6: number;
+  q7: number;
+  q8: number;
+  q9: number;
+  q10: number;
   createdAt: string;
 };
 
-export type CatalogRecord = MilestoneItem | EducationMaterial | DailyActivity | AgeRangeRecord | AdminUser | AppUser | FeedbackRecord;
+export type FeedbackQuestion = {
+  id: string;
+  slug: string;
+  label: string;
+  active: boolean;
+  displayOrder: number;
+};
+
+export type CatalogRecord = MilestoneItem | EducationMaterial | DailyActivity | AgeRangeRecord | FeedbackQuestion | AdminUser | AppUser | FeedbackRecord;
 
 export type CatalogState = {
   milestones: MilestoneItem[];
   education: EducationMaterial[];
   activities: DailyActivity[];
   ageRanges: AgeRangeRecord[];
+  feedbackQuestions: FeedbackQuestion[];
   adminUsers: AdminUser[];
   users: AppUser[];
   feedback: FeedbackRecord[];
