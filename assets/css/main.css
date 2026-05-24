@@ -218,7 +218,7 @@ h2 {
 
 .grid-controls {
   display: grid;
-  grid-template-columns: minmax(180px, 240px) minmax(220px, 1fr);
+  grid-template-columns: minmax(170px, 220px) minmax(220px, 1fr) minmax(130px, 160px) minmax(150px, 180px);
   gap: 12px;
   margin-bottom: 14px;
   padding: 12px;
@@ -242,6 +242,11 @@ h2 {
   padding: 8px 10px;
   background: #fff;
   color: #17211b;
+}
+
+.grid-controls .pager-button {
+  width: 100%;
+  min-height: 38px;
 }
 
 .icon-button,
@@ -318,6 +323,25 @@ th {
   color: #65746a;
   font-size: 12px;
   text-transform: uppercase;
+}
+
+.table-filter-row th {
+  background: #f8faf7;
+  padding: 8px 10px;
+}
+
+.table-filter-row input,
+.table-filter-row select {
+  width: 100%;
+  min-width: 110px;
+  height: 34px;
+  border: 1px solid #d7dfd9;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fff;
+  color: #17211b;
+  font-size: 12px;
+  text-transform: none;
 }
 
 tbody tr {

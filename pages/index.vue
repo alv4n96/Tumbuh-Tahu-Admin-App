@@ -96,13 +96,14 @@ const sections: SectionConfig[] = [
   }
 ];
 
-const pageSize = 10;
+const pageSizeOptions = [10, 25, 50, 100];
 const booleanFields = ["active", "published", "critical"];
 const numberFields = ["minAgeMonths", "maxAgeMonths", "displayOrder", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"];
 const textAreaFields = ["summary", "content", "description"];
 const readonlyCategories: CatalogCategory[] = ["users", "feedback"];
 const readonlyFields = ["lastLoginAt"];
 const activeCategory = ref<CatalogCategory>("milestones");
+const pageSize = ref(10);
 const currentPage = ref(1);
 const search = ref("");
 const filterField = ref("");
@@ -123,6 +124,7 @@ const catalog = reactive<CatalogState>({
   feedback: []
 });
 const form = reactive<Record<string, any>>({});
+const columnFilters = reactive<Record<string, string>>({});
 
 const activeSection = computed(() => sections.find((section) => section.key === activeCategory.value) || sections[0]);
 const activeRows = computed(() => {
@@ -133,6 +135,13 @@ const activeRows = computed(() => {
 
   if (field && value) {
     rows = rows.filter((row) => String((row as Record<string, unknown>)[field] ?? "").toLowerCase().includes(value));
+  }
+
+  for (const column of visibleFields.value) {
+    const columnValue = String(columnFilters[column] ?? "").toLowerCase().trim();
+    if (columnValue) {
+      rows = rows.filter((row) => String((row as Record<string, unknown>)[column] ?? "").toLowerCase().includes(columnValue));
+    }
   }
 
   if (!query) {
@@ -146,13 +155,13 @@ const tableFields = computed(() => visibleFields.value);
 const standardFormFields = computed(() => visibleFields.value.filter((field) => !booleanFields.includes(field)));
 const booleanFormFields = computed(() => visibleFields.value.filter((field) => booleanFields.includes(field)));
 const isReadOnlyCategory = computed(() => readonlyCategories.includes(activeCategory.value));
-const totalPages = computed(() => Math.max(1, Math.ceil(activeRows.value.length / pageSize)));
+const totalPages = computed(() => Math.max(1, Math.ceil(activeRows.value.length / pageSize.value)));
 const paginatedRows = computed(() => {
-  const start = (currentPage.value - 1) * pageSize;
-  return activeRows.value.slice(start, start + pageSize);
+  const start = (currentPage.value - 1) * pageSize.value;
+  return activeRows.value.slice(start, start + pageSize.value);
 });
-const pageStart = computed(() => (activeRows.value.length ? (currentPage.value - 1) * pageSize + 1 : 0));
-const pageEnd = computed(() => Math.min(currentPage.value * pageSize, activeRows.value.length));
+const pageStart = computed(() => (activeRows.value.length ? (currentPage.value - 1) * pageSize.value + 1 : 0));
+const pageEnd = computed(() => Math.min(currentPage.value * pageSize.value, activeRows.value.length));
 const sectionActiveCount = computed(() => {
   if (activeCategory.value === "education") {
     return catalog.education.filter((item) => item.published).length;
@@ -197,11 +206,12 @@ watch(activeCategory, () => {
   currentPage.value = 1;
   filterField.value = "";
   filterValue.value = "";
+  clearColumnFilters();
   importResult.value = null;
   errorMessage.value = "";
   resetForm();
 });
-watch([search, filterField, filterValue], () => {
+watch([search, filterField, filterValue, pageSize], () => {
   currentPage.value = 1;
 });
 watch(totalPages, () => {
@@ -311,6 +321,12 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
+function clearColumnFilters() {
+  for (const key of Object.keys(columnFilters)) {
+    delete columnFilters[key];
+  }
+}
+
 function averageFeedbackRating(row: Record<string, unknown>) {
   const values = ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"]
     .map((field) => Number(row[field] || 0))
@@ -368,7 +384,7 @@ function downloadTemplate() {
 }
 
 function exportRows() {
-  const blob = new Blob([buildCsvContent()], { type: "text/csv;charset=utf-8" });
+  const blob = new Blob([buildCsvContent(allCategoryRows())], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -378,16 +394,20 @@ function exportRows() {
 }
 
 async function copyRows() {
-  await navigator.clipboard.writeText(buildCsvContent());
+  await navigator.clipboard.writeText(buildCsvContent(allCategoryRows()));
 }
 
-function buildCsvContent() {
+function allCategoryRows() {
+  return catalog[activeCategory.value] as CatalogRecord[];
+}
+
+function buildCsvContent(rows = activeRows.value) {
   const fields = visibleFields.value;
   const header = fields.join(",");
-  const rows = activeRows.value.map((row) =>
+  const csvRows = rows.map((row) =>
     fields.map((field) => csvCell((row as Record<string, unknown>)[field])).join(",")
   );
-  return [header, ...rows].join("\n");
+  return [header, ...csvRows].join("\n");
 }
 
 function csvCell(value: unknown) {
@@ -549,6 +569,16 @@ async function logout() {
               <span>Nilai Filter</span>
               <input v-model="filterValue" type="text" :disabled="!filterField" placeholder="Ketik nilai filter" />
             </label>
+            <label>
+              <span>Per Halaman</span>
+              <select v-model.number="pageSize">
+                <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}</option>
+              </select>
+            </label>
+            <label>
+              <span>Filter List</span>
+              <button class="pager-button" type="button" @click="clearColumnFilters">Clear filter kolom</button>
+            </label>
           </div>
 
           <div v-if="loading" class="state">
@@ -566,6 +596,17 @@ async function logout() {
                 <tr>
                   <th v-for="field in tableFields" :key="field">{{ formatFieldLabel(field) }}</th>
                   <th v-if="!isReadOnlyCategory" aria-label="Actions"></th>
+                </tr>
+                <tr class="table-filter-row">
+                  <th v-for="field in tableFields" :key="`filter-${field}`">
+                    <select v-if="booleanFields.includes(field)" v-model="columnFilters[field]" :aria-label="`Filter ${formatFieldLabel(field)}`">
+                      <option value="">Semua</option>
+                      <option value="true">Ya</option>
+                      <option value="false">Tidak</option>
+                    </select>
+                    <input v-else v-model="columnFilters[field]" type="text" :aria-label="`Filter ${formatFieldLabel(field)}`" placeholder="Filter" />
+                  </th>
+                  <th v-if="!isReadOnlyCategory" aria-label="Actions filter"></th>
                 </tr>
               </thead>
               <tbody>
