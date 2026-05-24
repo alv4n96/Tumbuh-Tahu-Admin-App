@@ -4,114 +4,18 @@ import {
   BarChart3,
   BookOpen,
   CheckCircle2,
-  ClipboardCopy,
-  Download,
-  Filter,
   LayoutDashboard,
   Loader2,
   LogOut,
   MessageSquare,
-  Plus,
-  Search,
   Settings,
   Shield,
-  Trash2,
-  Upload,
-  Users,
-  X
+  TableProperties,
+  Users
 } from "lucide-vue-next";
-import type { Component } from "vue";
-import type {
-  AdminUser,
-  ApiResponse,
-  CatalogCategory,
-  CatalogRecord,
-  CatalogState,
-  ImportResult
-} from "~/types/admin";
+import type { ApiResponse, CatalogState } from "~/types/admin";
 
-type SectionConfig = {
-  key: CatalogCategory;
-  label: string;
-  description: string;
-  fields: string[];
-  icon: Component;
-};
-
-const sections: SectionConfig[] = [
-  {
-    key: "milestones",
-    label: "Milestones",
-    description: "Kontrol checklist perkembangan anak.",
-    fields: ["slug", "label", "category", "ageRange", "minAgeMonths", "maxAgeMonths", "critical", "active", "displayOrder"],
-    icon: CheckCircle2
-  },
-  {
-    key: "education",
-    label: "Materi Edukasi",
-    description: "Konten baca yang muncul di aplikasi user.",
-    fields: ["title", "ageRange", "duration", "summary", "content", "youtubeUrl", "published", "displayOrder"],
-    icon: BookOpen
-  },
-  {
-    key: "activities",
-    label: "Stimulasi",
-    description: "Aktivitas harian untuk orang tua.",
-    fields: ["title", "ageRange", "duration", "description", "published", "displayOrder"],
-    icon: Activity
-  },
-  {
-    key: "ageRanges",
-    label: "Rentang Usia",
-    description: "Master data segmentasi usia.",
-    fields: ["label", "minAgeMonths", "maxAgeMonths", "active", "displayOrder"],
-    icon: LayoutDashboard
-  },
-  {
-    key: "feedbackQuestions",
-    label: "Pertanyaan Feedback",
-    description: "Label, urutan, dan status pertanyaan rating di aplikasi.",
-    fields: ["slug", "label", "active", "displayOrder"],
-    icon: MessageSquare
-  },
-  {
-    key: "adminUsers",
-    label: "Settings",
-    description: "Akses admin, role, dan status login terakhir.",
-    fields: ["email", "fullName", "role", "active", "lastLoginAt"],
-    icon: Settings
-  },
-  {
-    key: "users",
-    label: "Users",
-    description: "Daftar user aplikasi dan login terakhir.",
-    fields: ["email", "fullName", "createdAt", "lastLoginAt"],
-    icon: Users
-  },
-  {
-    key: "feedback",
-    label: "Feedback",
-    description: "Masukan pengguna dari aplikasi utama.",
-    fields: ["respondentName", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "createdAt"],
-    icon: MessageSquare
-  }
-];
-
-const pageSizeOptions = [10, 25, 50, 100];
-const booleanFields = ["active", "published", "critical"];
-const numberFields = ["minAgeMonths", "maxAgeMonths", "displayOrder", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"];
-const textAreaFields = ["summary", "content", "description"];
-const readonlyCategories: CatalogCategory[] = ["users", "feedback"];
-const readonlyFields = ["lastLoginAt"];
-const activeCategory = ref<CatalogCategory>("milestones");
-const pageSize = ref(10);
-const currentPage = ref(1);
-const search = ref("");
-const openFilterField = ref("");
 const loading = ref(true);
-const saving = ref(false);
-const isFormModalOpen = ref(false);
-const importResult = ref<ImportResult | null>(null);
 const errorMessage = ref("");
 const catalog = reactive<CatalogState>({
   milestones: [],
@@ -123,131 +27,56 @@ const catalog = reactive<CatalogState>({
   users: [],
   feedback: []
 });
-const form = reactive<Record<string, any>>({});
-const columnFilters = reactive<Record<string, string>>({});
 
-const activeSection = computed(() => sections.find((section) => section.key === activeCategory.value) || sections[0]);
-const rawActiveRows = computed(() => catalog[activeCategory.value] as CatalogRecord[]);
-const activeRows = computed(() => {
-  const query = search.value.toLowerCase().trim();
-  let rows = rawActiveRows.value;
+const navItems = [
+  { path: "/", label: "Dashboard", icon: BarChart3 },
+  { path: "/milestones", label: "Milestones", icon: CheckCircle2 },
+  { path: "/education", label: "Materi Edukasi", icon: BookOpen },
+  { path: "/activities", label: "Stimulasi", icon: Activity },
+  { path: "/age-ranges", label: "Rentang Usia", icon: LayoutDashboard },
+  { path: "/feedback-questions", label: "Pertanyaan Feedback", icon: MessageSquare },
+  { path: "/admin-users", label: "Admin Users", icon: Settings },
+  { path: "/users", label: "Users", icon: Users },
+  { path: "/feedback", label: "Feedback", icon: MessageSquare },
+  { path: "/olah-data", label: "Olah Data", icon: TableProperties }
+];
 
-  for (const column of visibleFields.value) {
-    const columnValue = String(columnFilters[column] ?? "").toLowerCase().trim();
-    if (columnValue) {
-      rows = rows.filter((row) => String((row as Record<string, unknown>)[column] ?? "").toLowerCase().includes(columnValue));
-    }
-  }
-
-  if (!query) {
-    return rows;
-  }
-
-  return rows.filter((row) => JSON.stringify(row).toLowerCase().includes(query));
-});
-const visibleFields = computed(() => activeSection.value.fields);
-const tableFields = computed(() => visibleFields.value);
-const standardFormFields = computed(() => visibleFields.value.filter((field) => !booleanFields.includes(field)));
-const booleanFormFields = computed(() => visibleFields.value.filter((field) => booleanFields.includes(field)));
-const isReadOnlyCategory = computed(() => readonlyCategories.includes(activeCategory.value));
-const canDeleteRows = computed(() => !isReadOnlyCategory.value || activeCategory.value === "feedback");
-const totalPages = computed(() => Math.max(1, Math.ceil(activeRows.value.length / pageSize.value)));
-const paginatedRows = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  return activeRows.value.slice(start, start + pageSize.value);
-});
-const pageStart = computed(() => (activeRows.value.length ? (currentPage.value - 1) * pageSize.value + 1 : 0));
-const pageEnd = computed(() => Math.min(currentPage.value * pageSize.value, activeRows.value.length));
-const sectionActiveCount = computed(() => {
-  if (activeCategory.value === "education") {
-    return catalog.education.filter((item) => item.published).length;
-  }
-  if (activeCategory.value === "activities") {
-    return catalog.activities.filter((item) => item.published).length;
-  }
-  if (activeCategory.value === "feedback") {
-    return catalog.feedback.filter((item) => averageFeedbackRating(item as Record<string, unknown>) >= 4).length;
-  }
-  if (activeCategory.value === "users") {
-    return catalog.users.filter((item) => Boolean(item.lastLoginAt)).length;
-  }
-  return (catalog[activeCategory.value] as CatalogRecord[]).filter((item) => Boolean((item as Record<string, unknown>).active)).length;
-});
-const sectionSecondaryLabel = computed(() => {
-  if (activeCategory.value === "education" || activeCategory.value === "activities") {
-    return "Published";
-  }
-  if (activeCategory.value === "feedback") {
-    return "Rating >= 4";
-  }
-  if (activeCategory.value === "users") {
-    return "Pernah Login";
-  }
-  return "Active";
-});
-const latestAdminLogin = computed(() => {
-  const users = catalog.adminUsers
-    .map((user) => user.lastLoginAt)
-    .filter((value): value is string => Boolean(value))
-    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-  return users[0] ? formatDateTime(users[0]) : "Belum ada";
-});
-const adminSummary = computed(() => {
-  const active = catalog.adminUsers.filter((user: AdminUser) => user.active).length;
-  return `${active}/${catalog.adminUsers.length} aktif`;
-});
-const dashboardCards = computed(() => [
-  {
-    label: "Konten Aktif",
-    value: `${catalog.milestones.filter((item) => item.active).length + catalog.education.filter((item) => item.published).length + catalog.activities.filter((item) => item.published).length}`,
-    detail: "Milestone, materi, dan stimulasi"
-  },
-  {
-    label: "Feedback Masuk",
-    value: String(catalog.feedback.length),
-    detail: `${catalog.feedbackQuestions.filter((item) => item.active).length} pertanyaan aktif`
-  },
-  {
-    label: "User Aplikasi",
-    value: String(catalog.users.length),
-    detail: `${catalog.users.filter((item) => Boolean(item.lastLoginAt)).length} pernah login`
-  },
-  {
-    label: "Data Terfilter",
-    value: `${activeRows.value.length}/${rawActiveRows.value.length}`,
-    detail: activeSection.value.label
-  }
-]);
+const contentTotals = computed(() => ({
+  milestones: catalog.milestones.length,
+  education: catalog.education.length,
+  activities: catalog.activities.length,
+  feedbackQuestions: catalog.feedbackQuestions.length
+}));
+const activeTotals = computed(() => ({
+  milestones: catalog.milestones.filter((item) => item.active).length,
+  education: catalog.education.filter((item) => item.published).length,
+  activities: catalog.activities.filter((item) => item.published).length,
+  feedbackQuestions: catalog.feedbackQuestions.filter((item) => item.active).length
+}));
 const contentHealth = computed(() => {
-  const total = catalog.milestones.length + catalog.education.length + catalog.activities.length + catalog.feedbackQuestions.length;
-  const active =
-    catalog.milestones.filter((item) => item.active).length +
-    catalog.education.filter((item) => item.published).length +
-    catalog.activities.filter((item) => item.published).length +
-    catalog.feedbackQuestions.filter((item) => item.active).length;
+  const total = contentTotals.value.milestones + contentTotals.value.education + contentTotals.value.activities + contentTotals.value.feedbackQuestions;
+  const active = activeTotals.value.milestones + activeTotals.value.education + activeTotals.value.activities + activeTotals.value.feedbackQuestions;
   return total ? Math.round((active / total) * 100) : 0;
 });
+const averageFeedback = computed(() => {
+  const values = catalog.feedback.flatMap((row) =>
+    ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"].map((field) => Number((row as unknown as Record<string, number>)[field] || 0)).filter(Boolean)
+  );
+  return values.length ? (values.reduce((total, value) => total + value, 0) / values.length).toFixed(2) : "0";
+});
+const ageCoverage = computed(() =>
+  catalog.ageRanges.map((age) => ({
+    label: age.label,
+    total:
+      catalog.milestones.filter((item) => item.ageRange === age.label).length +
+      catalog.education.filter((item) => item.ageRange === age.label).length +
+      catalog.activities.filter((item) => item.ageRange === age.label).length
+  }))
+);
+const recentFeedback = computed(() => catalog.feedback.slice(0, 5));
+const adminSummary = computed(() => `${catalog.adminUsers.length} admin`);
 
 onMounted(loadCatalog);
-watch(activeCategory, () => {
-  currentPage.value = 1;
-  clearColumnFilters();
-  openFilterField.value = "";
-  importResult.value = null;
-  errorMessage.value = "";
-  resetForm();
-});
-watch([search, pageSize], () => {
-  currentPage.value = 1;
-});
-watch(columnFilters, () => {
-  currentPage.value = 1;
-});
-watch(totalPages, () => {
-  if (currentPage.value > totalPages.value) {
-    currentPage.value = totalPages.value;
-  }
-});
 
 async function loadCatalog() {
   loading.value = true;
@@ -258,239 +87,15 @@ async function loadCatalog() {
       throw new Error(String(response.Error || "Failed to load catalog"));
     }
     Object.assign(catalog, response.Data);
-    resetForm();
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "Gagal memuat data.";
+    errorMessage.value = error instanceof Error ? error.message : "Gagal memuat dashboard.";
   } finally {
     loading.value = false;
   }
 }
 
-function resetForm() {
-  for (const key of Object.keys(form)) {
-    delete form[key];
-  }
-
-  for (const field of activeSection.value.fields) {
-    form[field] = defaultValue(field);
-  }
-}
-
-function openCreateModal() {
-  if (isReadOnlyCategory.value) {
-    return;
-  }
-  resetForm();
-  isFormModalOpen.value = true;
-}
-
-function closeFormModal() {
-  if (!saving.value) {
-    isFormModalOpen.value = false;
-  }
-}
-
-function defaultValue(field: string) {
-  if (["active", "published", "critical"].includes(field)) {
-    return true;
-  }
-  if (["minAgeMonths", "maxAgeMonths", "displayOrder"].includes(field)) {
-    return 0;
-  }
-  if (field === "ageRange") {
-    return "6-12 bln";
-  }
-  if (field === "category") {
-    return "Motorik Kasar";
-  }
-  if (field === "role") {
-    return "admin";
-  }
-  if (/^q([1-9]|10)$/.test(field)) {
-    return 0;
-  }
-  if (field === "createdAt") {
-    return new Date().toISOString();
-  }
-  return "";
-}
-
-function editRow(row: CatalogRecord) {
-  if (isReadOnlyCategory.value) {
-    return;
-  }
-  resetForm();
-  Object.assign(form, row);
-  isFormModalOpen.value = true;
-}
-
-function formatCell(value: unknown) {
-  if (typeof value === "boolean") {
-    return value ? "Ya" : "Tidak";
-  }
-  if (!value) {
-    return "-";
-  }
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
-    return formatDateTime(value);
-  }
-  return value;
-}
-
-function formatFieldLabel(field: string) {
-  return field
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/^./, (value) => value.toUpperCase());
-}
-
 function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
-}
-
-function clearColumnFilters() {
-  for (const key of Object.keys(columnFilters)) {
-    delete columnFilters[key];
-  }
-  openFilterField.value = "";
-}
-
-function averageFeedbackRating(row: Record<string, unknown>) {
-  const values = ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"]
-    .map((field) => Number(row[field] || 0))
-    .filter((value) => value > 0);
-  return values.length ? values.reduce((total, value) => total + value, 0) / values.length : 0;
-}
-
-function toggleFilter(field: string) {
-  openFilterField.value = openFilterField.value === field ? "" : field;
-}
-
-function clearSingleColumnFilter(field: string) {
-  delete columnFilters[field];
-  openFilterField.value = "";
-}
-
-function previousPage() {
-  currentPage.value = Math.max(1, currentPage.value - 1);
-}
-
-function nextPage() {
-  currentPage.value = Math.min(totalPages.value, currentPage.value + 1);
-}
-
-async function saveRow() {
-  saving.value = true;
-  errorMessage.value = "";
-  try {
-    const id = String(form.id || "");
-    const url = id ? `/api/admin/${activeCategory.value}/${encodeURIComponent(id)}` : `/api/admin/${activeCategory.value}`;
-    const method = id ? "PUT" : "POST";
-    const response = await $fetch<ApiResponse<CatalogRecord>>(url, { method, body: form });
-    if (response.Error) {
-      throw new Error(String(response.Error));
-    }
-    await loadCatalog();
-    isFormModalOpen.value = false;
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "Gagal menyimpan data.";
-  } finally {
-    saving.value = false;
-  }
-}
-
-async function deleteRow(row: CatalogRecord) {
-  saving.value = true;
-  try {
-    const response = await $fetch<ApiResponse<{ id: string }>>(`/api/admin/${activeCategory.value}/${encodeURIComponent(row.id)}`, {
-      method: "DELETE"
-    });
-    if (response.Error) {
-      throw new Error(String(response.Error));
-    }
-    await loadCatalog();
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "Gagal menghapus data.";
-  } finally {
-    saving.value = false;
-  }
-}
-
-function downloadTemplate() {
-  window.location.href = `/api/admin/${activeCategory.value}/template`;
-}
-
-function exportRows() {
-  const blob = new Blob([buildCsvContent(allCategoryRows())], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${activeCategory.value}-export.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-async function copyRows() {
-  await navigator.clipboard.writeText(buildCsvContent(allCategoryRows()));
-}
-
-function allCategoryRows() {
-  return catalog[activeCategory.value] as CatalogRecord[];
-}
-
-function buildCsvContent(rows = activeRows.value) {
-  const fields = visibleFields.value;
-  const header = fields.join(",");
-  const csvRows = rows.map((row) =>
-    fields.map((field) => csvCell((row as Record<string, unknown>)[field])).join(",")
-  );
-  return [header, ...csvRows].join("\n");
-}
-
-function csvCell(value: unknown) {
-  const text = value == null ? "" : String(value);
-  return `"${text.replace(/"/g, '""')}"`;
-}
-
-async function handleImport(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) {
-    return;
-  }
-
-  const text = await file.text();
-  const rows = parseCsv(text);
-  saving.value = true;
-  try {
-    const response = await $fetch<ApiResponse<ImportResult>>(`/api/admin/${activeCategory.value}/bulk`, {
-      method: "POST",
-      body: { rows }
-    });
-    if (response.Error || !response.Data) {
-      throw new Error(String(response.Error || "Import failed"));
-    }
-    importResult.value = response.Data;
-    await loadCatalog();
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "Gagal import data.";
-  } finally {
-    saving.value = false;
-    input.value = "";
-  }
-}
-
-function parseCsv(text: string) {
-  const [headerLine, ...lines] = text.trim().split(/\r?\n/);
-  const headers = headerLine.split(",").map((item) => item.trim());
-  return lines
-    .filter(Boolean)
-    .map((line) => {
-      const values = line.split(",").map((item) => item.trim());
-      return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
-    });
+  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
 async function logout() {
@@ -506,25 +111,14 @@ async function logout() {
         <span class="brand-mark">TT</span>
         <div>
           <strong>Tumbuh Tahu</strong>
-          <small>Admin Control</small>
+          <small>Admin Dashboard</small>
         </div>
       </div>
 
       <nav class="nav-list" aria-label="Admin navigation">
-        <button
-          v-for="section in sections"
-          :key="section.key"
-          class="nav-item"
-          :class="{ active: activeCategory === section.key }"
-          type="button"
-          @click="activeCategory = section.key"
-        >
-          <component :is="section.icon" :size="18" />
-          <span>{{ section.label }}</span>
-        </button>
-        <NuxtLink class="nav-item nav-link" to="/olah-data">
-          <BarChart3 :size="18" />
-          <span>Olah Data</span>
+        <NuxtLink v-for="item in navItems" :key="item.path" class="nav-item nav-link" :class="{ active: item.path === '/' }" :to="item.path">
+          <component :is="item.icon" :size="18" />
+          <span>{{ item.label }}</span>
         </NuxtLink>
       </nav>
 
@@ -541,207 +135,120 @@ async function logout() {
       <header class="topbar">
         <div>
           <p class="eyebrow">Business Analytics App</p>
-          <h1>Admin Panel</h1>
+          <h1>Dashboard</h1>
         </div>
-        <div class="topbar-actions">
-          <div class="search-box">
-            <Search :size="18" />
-            <input v-model="search" type="search" placeholder="Search catalog data" />
-          </div>
-          <button class="icon-button" type="button" title="Logout" @click="logout">
-            <LogOut :size="18" />
-          </button>
-        </div>
+        <button class="icon-button" type="button" title="Logout" @click="logout">
+          <LogOut :size="18" />
+        </button>
       </header>
 
-      <section class="metric-grid" aria-label="Admin metrics">
-        <article v-for="card in dashboardCards" :key="card.label" class="metric">
-          <span>{{ card.label }}</span>
-          <strong>{{ card.value }}</strong>
-          <small>{{ card.detail }}</small>
-        </article>
-      </section>
+      <div v-if="loading" class="state">
+        <Loader2 class="spin" :size="22" />
+        <span>Loading dashboard</span>
+      </div>
 
-      <section class="dashboard-strip" aria-label="Admin dashboard">
-        <article class="panel dashboard-panel">
-          <div class="panel-header">
-            <div>
-              <h2>Dashboard Admin</h2>
-              <p>Ringkasan kondisi konten dan data operasional.</p>
+      <p v-else-if="errorMessage" class="error">{{ errorMessage }}</p>
+
+      <section v-else class="analysis-layout">
+        <section class="metric-grid" aria-label="Admin metrics">
+          <article class="metric">
+            <span>Konten Aktif</span>
+            <strong>{{ activeTotals.milestones + activeTotals.education + activeTotals.activities }}</strong>
+            <small>Milestone, materi, dan stimulasi siap tampil</small>
+          </article>
+          <article class="metric">
+            <span>Feedback Masuk</span>
+            <strong>{{ catalog.feedback.length }}</strong>
+            <small>Rata-rata rating {{ averageFeedback }}</small>
+          </article>
+          <article class="metric">
+            <span>User Aplikasi</span>
+            <strong>{{ catalog.users.length }}</strong>
+            <small>{{ catalog.users.filter((item) => Boolean(item.lastLoginAt)).length }} pernah login</small>
+          </article>
+          <article class="metric">
+            <span>Pertanyaan Aktif</span>
+            <strong>{{ activeTotals.feedbackQuestions }}/{{ contentTotals.feedbackQuestions }}</strong>
+            <small>Kontrol form feedback user</small>
+          </article>
+        </section>
+
+        <section class="analysis-grid">
+          <article class="panel dashboard-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Kesiapan Konten</h2>
+                <p>Ringkasan data yang bisa tampil di aplikasi user.</p>
+              </div>
+              <strong>{{ contentHealth }}%</strong>
             </div>
-            <NuxtLink class="pager-button nav-link dashboard-link" to="/olah-data">Olah Data</NuxtLink>
-          </div>
-          <div class="health-row">
-            <span>Konten siap tampil</span>
-            <strong>{{ contentHealth }}%</strong>
-          </div>
-          <div class="health-bar" aria-hidden="true">
-            <span :style="{ width: `${contentHealth}%` }"></span>
-          </div>
-          <div class="dashboard-pills">
-            <span>{{ catalog.ageRanges.filter((item) => item.active).length }} rentang usia aktif</span>
-            <span>{{ catalog.education.filter((item) => item.published).length }} materi publish</span>
-            <span>{{ catalog.activities.filter((item) => item.published).length }} stimulasi publish</span>
-          </div>
-        </article>
-      </section>
-
-      <section>
-        <article class="panel table-panel">
-          <div class="panel-header">
-            <div>
-              <h2>{{ activeSection.label }}</h2>
-              <p>{{ activeSection.description }}</p>
+            <div class="health-bar" aria-hidden="true">
+              <span :style="{ width: `${contentHealth}%` }"></span>
             </div>
-            <div class="toolbar">
-              <button v-if="!isReadOnlyCategory" class="icon-button" type="button" title="Tambah record" @click="openCreateModal">
-                <Plus :size="18" />
-              </button>
-              <button class="icon-button" type="button" title="Download template" @click="downloadTemplate">
-                <Download :size="18" />
-              </button>
-              <button class="icon-button" type="button" title="Export data" @click="exportRows">
-                <Download :size="18" />
-              </button>
-              <button class="icon-button" type="button" title="Copy CSV" @click="copyRows">
-                <ClipboardCopy :size="18" />
-              </button>
-              <label v-if="!isReadOnlyCategory" class="icon-button" title="Bulk import">
-                <Upload :size="18" />
-                <input class="sr-only" type="file" accept=".csv" @change="handleImport" />
-              </label>
+            <div class="dashboard-pills">
+              <NuxtLink class="nav-link" to="/milestones">{{ activeTotals.milestones }} milestone aktif</NuxtLink>
+              <NuxtLink class="nav-link" to="/education">{{ activeTotals.education }} materi publish</NuxtLink>
+              <NuxtLink class="nav-link" to="/activities">{{ activeTotals.activities }} stimulasi publish</NuxtLink>
             </div>
-          </div>
+          </article>
 
-          <div class="table-control-row">
-            <span>{{ sectionSecondaryLabel }}: {{ sectionActiveCount }}</span>
-            <label>
-              <span>Per halaman</span>
-              <select v-model.number="pageSize">
-                <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}</option>
-              </select>
-            </label>
-            <button class="pager-button" type="button" @click="clearColumnFilters">Clear filter</button>
-          </div>
-
-          <div v-if="loading" class="state">
-            <Loader2 class="spin" :size="22" />
-            <span>Loading data</span>
-          </div>
-
-          <div v-else-if="!activeRows.length" class="state">
-            <span>No data found</span>
-          </div>
-
-          <div v-else class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th v-for="field in tableFields" :key="field">
-                    <div class="th-control">
-                      <span>{{ formatFieldLabel(field) }}</span>
-                      <button
-                        class="filter-button"
-                        :class="{ active: Boolean(columnFilters[field]) || openFilterField === field }"
-                        type="button"
-                        :title="`Filter ${formatFieldLabel(field)}`"
-                        @click.stop="toggleFilter(field)"
-                      >
-                        <Filter :size="14" />
-                      </button>
-                      <div v-if="openFilterField === field" class="filter-popover">
-                        <select v-if="booleanFields.includes(field)" v-model="columnFilters[field]" :aria-label="`Filter ${formatFieldLabel(field)}`">
-                          <option value="">Semua</option>
-                          <option value="true">Ya</option>
-                          <option value="false">Tidak</option>
-                        </select>
-                        <input v-else v-model="columnFilters[field]" type="text" :aria-label="`Filter ${formatFieldLabel(field)}`" placeholder="Ketik filter" />
-                        <button class="pager-button" type="button" @click="clearSingleColumnFilter(field)">Clear</button>
-                      </div>
-                    </div>
-                  </th>
-                  <th v-if="canDeleteRows" aria-label="Actions"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in paginatedRows" :key="row.id" :class="{ 'is-readonly': isReadOnlyCategory }" @click="editRow(row)">
-                  <td v-for="field in tableFields" :key="field">
-                    {{ formatCell((row as Record<string, unknown>)[field]) }}
-                  </td>
-                  <td v-if="canDeleteRows">
-                    <button class="danger-button" type="button" title="Delete" @click.stop="deleteRow(row)">
-                      <Trash2 :size="16" />
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div v-if="!loading && activeRows.length" class="pagination-bar">
-            <span>Menampilkan {{ pageStart }}-{{ pageEnd }} dari {{ activeRows.length }}</span>
-            <div class="pagination-actions">
-              <button class="pager-button" type="button" :disabled="currentPage === 1" @click="previousPage">Prev</button>
-              <span>Page {{ currentPage }} / {{ totalPages }}</span>
-              <button class="pager-button" type="button" :disabled="currentPage === totalPages" @click="nextPage">Next</button>
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Quick Actions</h2>
+                <p>Masuk langsung ke kontrol yang paling sering dipakai.</p>
+              </div>
             </div>
-          </div>
-        </article>
+            <div class="summary-list">
+              <NuxtLink class="summary-row nav-link" to="/feedback-questions">
+                <span>Atur pertanyaan feedback</span>
+                <strong>{{ catalog.feedbackQuestions.length }}</strong>
+              </NuxtLink>
+              <NuxtLink class="summary-row nav-link" to="/feedback">
+                <span>Lihat dan hapus feedback</span>
+                <strong>{{ catalog.feedback.length }}</strong>
+              </NuxtLink>
+              <NuxtLink class="summary-row nav-link" to="/olah-data">
+                <span>Olah data dan export</span>
+                <strong>Open</strong>
+              </NuxtLink>
+            </div>
+          </article>
+        </section>
+
+        <section class="analysis-grid">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Cakupan Rentang Usia</h2>
+                <p>Total milestone, materi, dan stimulasi per rentang usia.</p>
+              </div>
+            </div>
+            <div class="summary-list">
+              <div v-for="age in ageCoverage" :key="age.label" class="summary-row">
+                <span>{{ age.label }}</span>
+                <strong>{{ age.total }}</strong>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Feedback Terbaru</h2>
+                <p>Data terbaru dari aplikasi user.</p>
+              </div>
+            </div>
+            <div class="summary-list">
+              <NuxtLink v-for="item in recentFeedback" :key="item.id" class="summary-row nav-link" to="/feedback">
+                <span>{{ item.respondentName }}</span>
+                <strong>{{ formatDateTime(item.createdAt) }}</strong>
+              </NuxtLink>
+              <div v-if="!recentFeedback.length" class="state">Belum ada feedback.</div>
+            </div>
+          </article>
+        </section>
       </section>
     </section>
-
-    <div v-if="isFormModalOpen" class="modal-backdrop" role="presentation" @click.self="closeFormModal">
-      <section class="modal-panel" role="dialog" aria-modal="true" :aria-label="`Form ${activeSection.label}`">
-        <div class="panel-header">
-          <div>
-            <h2>Control Handle</h2>
-            <p>Create or update {{ activeSection.label.toLowerCase() }}</p>
-          </div>
-          <button class="icon-button" type="button" title="Tutup modal" @click="closeFormModal">
-            <X :size="18" />
-          </button>
-        </div>
-
-        <form class="record-form" @submit.prevent="saveRow">
-            <label v-for="field in standardFormFields" :key="field">
-              <span>{{ formatFieldLabel(field) }}</span>
-              <select v-if="field === 'category'" v-model="form[field]">
-                <option>Motorik Kasar</option>
-                <option>Motorik Halus</option>
-                <option>Bahasa</option>
-                <option>Sosial & Kemandirian</option>
-              </select>
-              <select v-else-if="field === 'ageRange'" v-model="form[field]">
-                <option v-for="age in catalog.ageRanges" :key="age.id">{{ age.label }}</option>
-              </select>
-              <select v-else-if="field === 'role'" v-model="form[field]">
-                <option>owner</option>
-                <option>admin</option>
-                <option>editor</option>
-              </select>
-              <input v-else-if="readonlyFields.includes(field)" v-model="form[field]" type="text" disabled />
-              <input v-else-if="numberFields.includes(field)" v-model.number="form[field]" type="number" />
-              <textarea v-else-if="textAreaFields.includes(field)" v-model="form[field]" rows="3" />
-              <input v-else v-model="form[field]" type="text" />
-            </label>
-
-            <div v-if="booleanFormFields.length" class="checkbox-grid" aria-label="Status controls">
-              <label v-for="field in booleanFormFields" :key="field" class="checkbox-field">
-                <input v-model="form[field]" type="checkbox" />
-                <span>{{ formatFieldLabel(field) }}</span>
-              </label>
-            </div>
-
-            <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-            <div v-if="importResult" class="import-result">
-              Import: {{ importResult.success }} sukses, {{ importResult.failed }} gagal dari {{ importResult.total }} row
-            </div>
-            <button class="primary-button" type="submit" :disabled="saving">
-              <Loader2 v-if="saving" class="spin" :size="18" />
-              <span>{{ saving ? "Saving" : "Save Control" }}</span>
-            </button>
-          </form>
-      </section>
-    </div>
   </main>
 </template>
