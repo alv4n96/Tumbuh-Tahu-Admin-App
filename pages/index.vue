@@ -1,18 +1,5 @@
 <script setup lang="ts">
-import {
-  Activity,
-  BarChart3,
-  BookOpen,
-  CheckCircle2,
-  LayoutDashboard,
-  Loader2,
-  LogOut,
-  MessageSquare,
-  Settings,
-  Shield,
-  TableProperties,
-  Users
-} from "lucide-vue-next";
+import { Loader2, LogOut } from "lucide-vue-next";
 import type { ApiResponse, CatalogState } from "~/types/admin";
 
 const loading = ref(true);
@@ -27,19 +14,6 @@ const catalog = reactive<CatalogState>({
   users: [],
   feedback: []
 });
-
-const navItems = [
-  { path: "/", label: "Dashboard", icon: BarChart3 },
-  { path: "/milestones", label: "Milestones", icon: CheckCircle2 },
-  { path: "/education", label: "Materi Edukasi", icon: BookOpen },
-  { path: "/activities", label: "Stimulasi", icon: Activity },
-  { path: "/age-ranges", label: "Rentang Usia", icon: LayoutDashboard },
-  { path: "/feedback-questions", label: "Pertanyaan Feedback", icon: MessageSquare },
-  { path: "/admin-users", label: "Admin Users", icon: Settings },
-  { path: "/users", label: "Users", icon: Users },
-  { path: "/feedback", label: "Feedback", icon: MessageSquare },
-  { path: "/olah-data", label: "Olah Data", icon: TableProperties }
-];
 
 const contentTotals = computed(() => ({
   milestones: catalog.milestones.length,
@@ -106,30 +80,7 @@ async function logout() {
 
 <template>
   <main class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <span class="brand-mark">TT</span>
-        <div>
-          <strong>Tumbuh Tahu</strong>
-          <small>Admin Dashboard</small>
-        </div>
-      </div>
-
-      <nav class="nav-list" aria-label="Admin navigation">
-        <NuxtLink v-for="item in navItems" :key="item.path" class="nav-item nav-link" :class="{ active: item.path === '/' }" :to="item.path">
-          <component :is="item.icon" :size="18" />
-          <span>{{ item.label }}</span>
-        </NuxtLink>
-      </nav>
-
-      <div class="access-panel">
-        <Shield :size="18" />
-        <div>
-          <strong>{{ adminSummary }}</strong>
-          <small>Multi-admin access ready</small>
-        </div>
-      </div>
-    </aside>
+    <AdminSidebar active-path="/" :admin-summary="adminSummary" subtitle="Admin Dashboard" />
 
     <section class="workspace">
       <header class="topbar">
