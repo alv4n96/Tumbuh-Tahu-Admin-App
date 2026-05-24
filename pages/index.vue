@@ -47,6 +47,18 @@ const ageCoverage = computed(() =>
       catalog.activities.filter((item) => item.ageRange === age.label).length
   }))
 );
+const contentReadyItems = computed(() => [
+  { label: "Milestones", active: activeTotals.value.milestones, total: contentTotals.value.milestones, path: "/milestones" },
+  { label: "Materi", active: activeTotals.value.education, total: contentTotals.value.education, path: "/education" },
+  { label: "Stimulasi", active: activeTotals.value.activities, total: contentTotals.value.activities, path: "/activities" },
+  { label: "Feedback", active: activeTotals.value.feedbackQuestions, total: contentTotals.value.feedbackQuestions, path: "/feedback-questions" }
+]);
+const dashboardChart = computed(() =>
+  contentReadyItems.value.map((item) => ({
+    ...item,
+    percent: item.total ? Math.round((item.active / item.total) * 100) : 0
+  }))
+);
 const recentFeedback = computed(() => catalog.feedback.slice(0, 5));
 const adminSummary = computed(() => `${catalog.adminUsers.length} admin`);
 
@@ -129,40 +141,36 @@ async function logout() {
             <div class="panel-header">
               <div>
                 <h2>Kesiapan Konten</h2>
-                <p>Ringkasan data yang bisa tampil di aplikasi user.</p>
+                <p>List status data yang bisa tampil di aplikasi user.</p>
               </div>
               <strong>{{ contentHealth }}%</strong>
             </div>
-            <div class="health-bar" aria-hidden="true">
-              <span :style="{ width: `${contentHealth}%` }"></span>
-            </div>
-            <div class="dashboard-pills">
-              <NuxtLink class="nav-link" to="/milestones">{{ activeTotals.milestones }} milestone aktif</NuxtLink>
-              <NuxtLink class="nav-link" to="/education">{{ activeTotals.education }} materi publish</NuxtLink>
-              <NuxtLink class="nav-link" to="/activities">{{ activeTotals.activities }} stimulasi publish</NuxtLink>
+            <div class="content-ready-list">
+              <NuxtLink v-for="item in contentReadyItems" :key="item.label" class="content-ready-item nav-link" :to="item.path">
+                <span>
+                  {{ item.label }}
+                  <small>{{ item.active }} aktif dari {{ item.total }} data</small>
+                </span>
+                <strong>{{ item.total ? Math.round((item.active / item.total) * 100) : 0 }}%</strong>
+              </NuxtLink>
             </div>
           </article>
 
           <article class="panel">
             <div class="panel-header">
               <div>
-                <h2>Quick Actions</h2>
-                <p>Masuk langsung ke kontrol yang paling sering dipakai.</p>
+                <h2>Diagram Konten</h2>
+                <p>Contoh diagram ringkas kesiapan tiap modul.</p>
               </div>
             </div>
-            <div class="summary-list">
-              <NuxtLink class="summary-row nav-link" to="/feedback-questions">
-                <span>Atur pertanyaan feedback</span>
-                <strong>{{ catalog.feedbackQuestions.length }}</strong>
-              </NuxtLink>
-              <NuxtLink class="summary-row nav-link" to="/feedback">
-                <span>Lihat dan hapus feedback</span>
-                <strong>{{ catalog.feedback.length }}</strong>
-              </NuxtLink>
-              <NuxtLink class="summary-row nav-link" to="/olah-data">
-                <span>Olah data dan export</span>
-                <strong>Open</strong>
-              </NuxtLink>
+            <div class="chart-list">
+              <div v-for="item in dashboardChart" :key="item.label" class="chart-row">
+                <span>{{ item.label }}</span>
+                <div class="chart-track" aria-hidden="true">
+                  <span :style="{ width: `${item.percent}%` }"></span>
+                </div>
+                <strong>{{ item.percent }}%</strong>
+              </div>
             </div>
           </article>
         </section>

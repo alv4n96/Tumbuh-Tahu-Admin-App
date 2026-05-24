@@ -3,7 +3,7 @@ import { ClipboardCopy, Download, Filter, Loader2, Plus, Trash2, Upload } from "
 import type { CatalogRecord } from "~/types/admin";
 import { booleanFields, pageSizeOptions } from "~/utils/catalogConfig";
 
-defineProps<{
+const props = defineProps<{
   activeRows: CatalogRecord[];
   canDeleteRows: boolean;
   columnFilters: Record<string, string>;
@@ -51,6 +51,8 @@ function formatCell(value: unknown) {
 function formatFieldLabel(field: string) {
   return field.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/^./, (value) => value.toUpperCase());
 }
+
+const activeFilterLabel = computed(() => (props.openFilterField ? formatFieldLabel(props.openFilterField) : ""));
 </script>
 
 <template>
@@ -92,6 +94,20 @@ function formatFieldLabel(field: string) {
         <button class="pager-button" type="button" @click="emit('clearColumnFilters')">Clear filter</button>
       </div>
 
+      <div v-if="openFilterField" class="filter-panel">
+        <div>
+          <strong>Filter {{ activeFilterLabel }}</strong>
+          <small>Data akan berubah otomatis saat nilai diisi.</small>
+        </div>
+        <select v-if="booleanFields.includes(openFilterField)" v-model="columnFilters[openFilterField]" :aria-label="`Filter ${activeFilterLabel}`">
+          <option value="">Semua</option>
+          <option value="true">Ya</option>
+          <option value="false">Tidak</option>
+        </select>
+        <input v-else v-model="columnFilters[openFilterField]" type="text" :aria-label="`Filter ${activeFilterLabel}`" placeholder="Ketik filter" />
+        <button class="pager-button" type="button" @click="emit('clearSingleColumnFilter', openFilterField)">Clear</button>
+      </div>
+
       <div v-if="loading" class="state">
         <Loader2 class="spin" :size="22" />
         <span>Loading data</span>
@@ -111,15 +127,6 @@ function formatFieldLabel(field: string) {
                   <button class="filter-button" :class="{ active: Boolean(columnFilters[field]) || openFilterField === field }" type="button" :title="`Filter ${formatFieldLabel(field)}`" @click.stop="emit('toggleFilter', field)">
                     <Filter :size="14" />
                   </button>
-                  <div v-if="openFilterField === field" class="filter-popover">
-                    <select v-if="booleanFields.includes(field)" v-model="columnFilters[field]" :aria-label="`Filter ${formatFieldLabel(field)}`">
-                      <option value="">Semua</option>
-                      <option value="true">Ya</option>
-                      <option value="false">Tidak</option>
-                    </select>
-                    <input v-else v-model="columnFilters[field]" type="text" :aria-label="`Filter ${formatFieldLabel(field)}`" placeholder="Ketik filter" />
-                    <button class="pager-button" type="button" @click="emit('clearSingleColumnFilter', field)">Clear</button>
-                  </div>
                 </div>
               </th>
               <th v-if="canDeleteRows" aria-label="Actions"></th>
