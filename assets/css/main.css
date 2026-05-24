@@ -91,6 +91,10 @@ textarea {
   text-align: left;
 }
 
+.nav-link {
+  text-decoration: none;
+}
+
 .nav-item.active,
 .nav-item:hover {
   background: #dcebe0;
@@ -479,6 +483,69 @@ tbody tr:hover {
   box-shadow: 0 22px 60px rgba(23, 33, 27, 0.22);
 }
 
+.analysis-layout {
+  display: grid;
+  gap: 16px;
+}
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 16px;
+}
+
+.wijmo-grid {
+  overflow-x: auto;
+  border: 1px solid #cbd8d0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.wijmo-grid table {
+  min-width: 760px;
+}
+
+.wijmo-grid th {
+  position: sticky;
+  top: 0;
+  background: #eef4f0;
+  color: #244b35;
+}
+
+.summary-list {
+  display: grid;
+  gap: 10px;
+}
+
+.summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #edf1ee;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8faf7;
+}
+
+.summary-row strong {
+  font-size: 20px;
+}
+
+.copy-box {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  border: 1px solid #d7dfd9;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfdfb;
+  color: #17211b;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -515,7 +582,8 @@ tbody tr:hover {
 
   .metric-grid,
   .nav-list,
-  .grid-controls {
+  .grid-controls,
+  .analysis-grid {
     grid-template-columns: 1fr;
   }
 

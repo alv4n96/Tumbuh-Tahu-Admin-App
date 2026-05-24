@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import {
   Activity,
+  BarChart3,
   BookOpen,
   CheckCircle2,
+  ClipboardCopy,
   Download,
   LayoutDashboard,
   Loader2,
@@ -89,7 +91,7 @@ const sections: SectionConfig[] = [
     key: "feedback",
     label: "Feedback",
     description: "Masukan pengguna dari aplikasi utama.",
-    fields: ["respondentName", "ownerId", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "createdAt"],
+    fields: ["respondentName", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "createdAt"],
     icon: MessageSquare
   }
 ];
@@ -256,7 +258,7 @@ function defaultValue(field: string) {
   if (["minAgeMonths", "maxAgeMonths", "displayOrder"].includes(field)) {
     return 0;
   }
-  if (field === "ageRange" || field === "label") {
+  if (field === "ageRange") {
     return "6-12 bln";
   }
   if (field === "category") {
@@ -365,6 +367,34 @@ function downloadTemplate() {
   window.location.href = `/api/admin/${activeCategory.value}/template`;
 }
 
+function exportRows() {
+  const blob = new Blob([buildCsvContent()], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${activeCategory.value}-export.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function copyRows() {
+  await navigator.clipboard.writeText(buildCsvContent());
+}
+
+function buildCsvContent() {
+  const fields = visibleFields.value;
+  const header = fields.join(",");
+  const rows = activeRows.value.map((row) =>
+    fields.map((field) => csvCell((row as Record<string, unknown>)[field])).join(",")
+  );
+  return [header, ...rows].join("\n");
+}
+
+function csvCell(value: unknown) {
+  const text = value == null ? "" : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 async function handleImport(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -433,6 +463,10 @@ async function logout() {
           <component :is="section.icon" :size="18" />
           <span>{{ section.label }}</span>
         </button>
+        <NuxtLink class="nav-item nav-link" to="/olah-data">
+          <BarChart3 :size="18" />
+          <span>Olah Data</span>
+        </NuxtLink>
       </nav>
 
       <div class="access-panel">
@@ -489,6 +523,12 @@ async function logout() {
               </button>
               <button class="icon-button" type="button" title="Download template" @click="downloadTemplate">
                 <Download :size="18" />
+              </button>
+              <button class="icon-button" type="button" title="Export data" @click="exportRows">
+                <Download :size="18" />
+              </button>
+              <button class="icon-button" type="button" title="Copy CSV" @click="copyRows">
+                <ClipboardCopy :size="18" />
               </button>
               <label v-if="!isReadOnlyCategory" class="icon-button" title="Bulk import">
                 <Upload :size="18" />
@@ -576,7 +616,7 @@ async function logout() {
                 <option>Bahasa</option>
                 <option>Sosial & Kemandirian</option>
               </select>
-              <select v-else-if="field === 'ageRange' || field === 'label'" v-model="form[field]">
+              <select v-else-if="field === 'ageRange'" v-model="form[field]">
                 <option v-for="age in catalog.ageRanges" :key="age.id">{{ age.label }}</option>
               </select>
               <select v-else-if="field === 'role'" v-model="form[field]">
