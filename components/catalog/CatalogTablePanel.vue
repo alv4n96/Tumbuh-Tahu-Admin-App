@@ -94,20 +94,6 @@ const activeFilterLabel = computed(() => (props.openFilterField ? formatFieldLab
         <button class="pager-button" type="button" @click="emit('clearColumnFilters')">Clear filter</button>
       </div>
 
-      <div v-if="openFilterField" class="filter-panel">
-        <div>
-          <strong>Filter {{ activeFilterLabel }}</strong>
-          <small>Data akan berubah otomatis saat nilai diisi.</small>
-        </div>
-        <select v-if="booleanFields.includes(openFilterField)" v-model="columnFilters[openFilterField]" :aria-label="`Filter ${activeFilterLabel}`">
-          <option value="">Semua</option>
-          <option value="true">Ya</option>
-          <option value="false">Tidak</option>
-        </select>
-        <input v-else v-model="columnFilters[openFilterField]" type="text" :aria-label="`Filter ${activeFilterLabel}`" placeholder="Ketik filter" />
-        <button class="pager-button" type="button" @click="emit('clearSingleColumnFilter', openFilterField)">Clear</button>
-      </div>
-
       <div v-if="loading" class="state">
         <Loader2 class="spin" :size="22" />
         <span>Loading data</span>
@@ -118,6 +104,20 @@ const activeFilterLabel = computed(() => (props.openFilterField ? formatFieldLab
       </div>
 
       <div v-else class="table-wrap">
+        <div v-if="openFilterField" class="filter-panel">
+          <div>
+            <strong>Filter {{ activeFilterLabel }}</strong>
+            <small>Data akan berubah otomatis saat nilai diisi.</small>
+          </div>
+          <select v-if="booleanFields.includes(openFilterField)" v-model="columnFilters[openFilterField]" :aria-label="`Filter ${activeFilterLabel}`">
+            <option value="">Semua</option>
+            <option value="true">Ya</option>
+            <option value="false">Tidak</option>
+          </select>
+          <input v-else v-model="columnFilters[openFilterField]" type="text" :aria-label="`Filter ${activeFilterLabel}`" placeholder="Ketik filter" />
+          <button class="pager-button" type="button" @click="emit('clearSingleColumnFilter', openFilterField)">Clear</button>
+        </div>
+
         <table>
           <thead>
             <tr>
